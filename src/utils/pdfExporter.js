@@ -1,165 +1,148 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export const exportToPdf = async (proposal) => {
+export const exportToPDF = async (filename = 'proposal.pdf') => {
   try {
-    console.log('=== PDF EXPORT START ===');
-    console.log('Proposal:', proposal.name);
+    const element = document.querySelector('[data-testid="proposal-preview"]');
     
-    // Ensure we're in preview mode first
-    await ensurePreviewMode();
-    
-    // Find the preview container
-    const previewContainer = await findPreviewContainer(proposal);
-    
-    if (!previewContainer) {
-      throw new Error('Could not find the proposal preview. Please switch to preview mode and try again.');
+    if (!element) {
+      throw new Error('Proposal preview element not found');
     }
 
-    console.log('Found preview container, starting export...');
+    // Store original styles
+    const originalStyles = {
+      overflow: element.style.overflow,
+      height: element.style.height,
+      maxHeight: element.style.maxHeight,
+      position: element.style.position,
+      transform: element.style.transform
+    };
     
-    // Use a simpler approach - capture the element directly without cloning
-    const canvas = await html2canvas(previewContainer, {
-      scale: 1,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      removeContainer: false,
-      foreignObjectRendering: false,
-      imageTimeout: 0,
-      onclone: (clonedDoc) => {
-        // Apply print styles to the cloned document
-        const style = clonedDoc.createElement('style');
-        style.textContent = `
-          * {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
+    // Prepare element for capture
+    element.style.overflow = 'visible';
+    element.style.height = 'auto';
+    element.style.maxHeight = 'none';
+    element.style.position = 'static';
+    element.style.transform = 'none';
+
+    // Wait for layout to settle
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Try multiple canvas generation approaches
+    let canvas = null;
+    let imgData = null;
+
+    // Approach 1: Standard html2canvas
+    try {
+      canvas = await html2canvas(element, {
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: true,
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+        scrollX: 0,
+        scrollY: 0,
+        foreignObjectRendering: false,
+        removeContainer: true,
+        imageTimeout: 15000,
+        onclone: (clonedDoc) => {
+          // Ensure all styles are applied in the cloned document
+          const clonedElement = clonedDoc.querySelector('[data-testid="proposal-preview"]');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.maxHeight = 'none';
+            clonedElement.style.position = 'static';
+            clonedElement.style.transform = 'none';
           }
-          body {
-            margin: 0 !important;
-            padding: 0 !important;
+        }
+      });
+
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        imgData = canvas.toDataURL('image/png', 1.0);
+        if (imgData && imgData !== 'data:,' && !imgData.startsWith('data:,')) {
+          console.log('Canvas generated successfully with approach 1');
+        } else {
+          canvas = null;
+        }
+      }
+    } catch (error) {
+      console.warn('Approach 1 failed:', error);
+      canvas = null;
+    }
+
+    // Approach 2: Simplified settings if first approach fails
+    if (!canvas) {
+      try {
+        canvas = await html2canvas(element, {
+          scale: 0.8,
+          useCORS: false,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: true,
+          foreignObjectRendering: false,
+          removeContainer: false,
+          imageTimeout: 10000
+        });
+
+        if (canvas && canvas.width > 0 && canvas.height > 0) {
+          imgData = canvas.toDataURL('image/jpeg', 0.8);
+          if (imgData && imgData !== 'data:,' && !imgData.startsWith('data:,')) {
+            console.log('Canvas generated successfully with approach 2');
+          } else {
+            canvas = null;
           }
-        `;
-        clonedDoc.head.appendChild(style);
+        }
+      } catch (error) {
+        console.warn('Approach 2 failed:', error);
+        canvas = null;
+      }
+    }
+
+    // Restore original styles
+    Object.keys(originalStyles).forEach(key => {
+      if (originalStyles[key] !== undefined) {
+        element.style[key] = originalStyles[key];
       }
     });
 
-    console.log('Canvas created:', { width: canvas.width, height: canvas.height });
-
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error('Canvas has zero dimensions. Please ensure the preview is visible.');
+    if (!canvas || !imgData) {
+      throw new Error('Failed to generate image data from element. Please try again or check if the content is properly loaded.');
     }
 
-    // Create PDF with proper sizing
+    // Create PDF with A4 dimensions
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const margin = 10;
-    const imgWidth = pageWidth - (margin * 2);
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    const imgData = canvas.toDataURL('image/jpeg', 0.95); // Use JPEG for better compression
+    // Calculate dimensions to fit the content properly
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
     
     let heightLeft = imgHeight;
     let position = 0;
 
     // Add first page
-    pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - margin * 2);
+    const imageFormat = imgData.includes('data:image/png') ? 'PNG' : 'JPEG';
+    pdf.addImage(imgData, imageFormat, 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
 
-    // Add additional pages if needed
+    // Add additional pages if content exceeds one page
     while (heightLeft >= 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', margin, position + margin, imgWidth, imgHeight);
-      heightLeft -= (pageHeight - margin * 2);
+      pdf.addImage(imgData, imageFormat, 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
     }
 
     // Save the PDF
-    const fileName = `${(proposal.name || 'proposal').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
-    pdf.save(fileName);
-
-    console.log('PDF exported successfully:', fileName);
+    pdf.save(filename);
+    
     return true;
   } catch (error) {
     console.error('PDF export failed:', error);
-    alert(`PDF export failed: ${error.message}`);
     throw error;
   }
 };
-
-// Helper function to ensure we're in preview mode
-async function ensurePreviewMode() {
-  console.log('Checking current mode...');
-  
-  let previewContainer = document.querySelector('[data-testid="proposal-preview"]');
-  
-  if (!previewContainer) {
-    console.log('Not in preview mode, looking for preview button...');
-    
-    const buttons = Array.from(document.querySelectorAll('button'));
-    const previewButton = buttons.find(btn => {
-      const text = btn.textContent.toLowerCase().trim();
-      return text.includes('preview') && !text.includes('edit');
-    });
-    
-    if (previewButton) {
-      console.log('Clicking preview button...');
-      previewButton.click();
-      
-      // Wait for the mode switch
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Check again
-      previewContainer = document.querySelector('[data-testid="proposal-preview"]');
-      
-      if (!previewContainer) {
-        console.log('Still not in preview mode after clicking button');
-      }
-    } else {
-      console.log('No preview button found');
-    }
-  }
-  
-  return !!previewContainer;
-}
-
-// Helper function to find the preview container
-async function findPreviewContainer(proposal) {
-  console.log('Looking for preview container...');
-  
-  // Try the main selector first
-  let container = document.querySelector('[data-testid="proposal-preview"]');
-  
-  if (container) {
-    console.log('Found container with data-testid');
-    return container;
-  }
-  
-  // Try styled-components class names
-  const styledContainers = document.querySelectorAll('[class*="PreviewContainer"]');
-  if (styledContainers.length > 0) {
-    console.log('Found styled PreviewContainer');
-    return styledContainers[0];
-  }
-  
-  // Look for any container with substantial content
-  const allDivs = document.querySelectorAll('div');
-  for (let div of allDivs) {
-    const text = div.textContent || '';
-    if (text.length > 500 && (
-      text.includes(proposal.name) ||
-      text.includes('Cover Letter') ||
-      text.includes('Scope of Work') ||
-      text.includes('Table of Contents')
-    )) {
-      console.log('Found content container by text matching');
-      return div;
-    }
-  }
-  
-  console.log('No suitable container found');
-  return null;
-}

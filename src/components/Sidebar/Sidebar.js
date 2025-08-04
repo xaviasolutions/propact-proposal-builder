@@ -5,7 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { addProposal, setCurrentProposal, deleteProposal } from '../../store/slices/proposalsSlice';
 import { v4 as uuidv4 } from 'uuid';
 import { exportToDocx } from '../../utils/docxExporter';
-import { exportToPdf } from '../../utils/pdfExporter';
+import { exportToPDF } from '../../utils/pdfExporter';
 import TemplateSelector from '../TemplateSelector/TemplateSelector';
 
 const SidebarContainer = styled.div`
@@ -297,7 +297,8 @@ const Sidebar = () => {
     setIsExporting(true);
     setShowExportDropdown(false);
     try {
-      await exportToPdf(currentProposal);
+      const filename = `${currentProposal.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+      await exportToPDF(filename);
     } catch (error) {
       console.error('PDF Export failed:', error);
       alert('PDF Export failed. Please try again.');

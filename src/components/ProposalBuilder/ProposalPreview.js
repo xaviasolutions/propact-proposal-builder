@@ -13,11 +13,23 @@ const PreviewContainer = styled.div`
 `;
 
 const PreviewContent = styled.div`
-  padding: 40px;
   max-width: 800px;
   margin: 0 auto;
   position: relative;
-  min-height: 100%;
+`;
+
+const Page = styled.div`
+  min-height: 100vh;
+  padding: 40px;
+  page-break-after: always;
+  
+  @media print {
+    page-break-after: always;
+  }
+  
+  &:last-child {
+    page-break-after: auto;
+  }
 `;
 
 const Watermark = styled.div`
@@ -34,15 +46,12 @@ const Watermark = styled.div`
 `;
 
 const CoverPage = styled.div`
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  border-bottom: 2px solid #e0e0e0;
-  margin-bottom: 40px;
-  padding-bottom: 40px;
   position: relative;
   z-index: 2;
 `;
@@ -73,9 +82,12 @@ const TableOfContents = styled.div`
   background: #f8f9fa;
   border-radius: 8px;
   padding: 30px;
-  margin-bottom: 40px;
   position: relative;
   z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 `;
 
 
@@ -385,123 +397,129 @@ const ProposalPreview = (props) => {
       )}
 
       <PreviewContent>
-        {/* Cover Page */}
-        <CoverPage>
-          <div style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            {branding?.logo && (
-              <div style={{ marginBottom: '40px' }}>
-                <Logo src={branding.logo} alt="Company Logo" />
-              </div>
-            )}
-            <ProposalTitle
-              primaryColor={primaryColor}
-              fontFamily={fontFamily}
-            >
-              {currentProposal.name}
-            </ProposalTitle>
-            <ProposalSubtitle
-              secondaryColor={secondaryColor}
-              fontFamily={fontFamily}
-            >
-              Professional Business Proposal
-            </ProposalSubtitle>
-            {branding?.headerText && (
-              <p style={{ fontSize: '16px', color: secondaryColor, fontFamily }}>
-                {branding.headerText}
-              </p>
-            )}
-            <div style={{
-              marginTop: '60px',
-              padding: '20px',
-              background: `linear-gradient(135deg, ${primaryColor}10 0%, ${primaryColor}05 100%)`,
-              borderRadius: '12px',
-              border: `2px solid ${primaryColor}20`
-            }}>
-              <div style={{ fontSize: '18px', color: primaryColor, fontWeight: '600', marginBottom: '10px' }}>
-                Prepared by: {branding?.footerText || 'Your Company Name'}
-              </div>
-              <div style={{ fontSize: '16px', color: secondaryColor }}>
-                Date: {new Date().toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+        {/* Page 1: Cover Page */}
+        <Page>
+          <CoverPage>
+            <div style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {branding?.logo && (
+                <div style={{ marginBottom: '40px' }}>
+                  <Logo src={branding.logo} alt="Company Logo" />
+                </div>
+              )}
+              <ProposalTitle
+                primaryColor={primaryColor}
+                fontFamily={fontFamily}
+              >
+                {currentProposal.name}
+              </ProposalTitle>
+              <ProposalSubtitle
+                secondaryColor={secondaryColor}
+                fontFamily={fontFamily}
+              >
+                Professional Business Proposal
+              </ProposalSubtitle>
+              {branding?.headerText && (
+                <p style={{ fontSize: '16px', color: secondaryColor, fontFamily }}>
+                  {branding.headerText}
+                </p>
+              )}
+              <div style={{
+                marginTop: '60px',
+                padding: '20px',
+                background: `linear-gradient(135deg, ${primaryColor}10 0%, ${primaryColor}05 100%)`,
+                borderRadius: '12px',
+                border: `2px solid ${primaryColor}20`
+              }}>
+                <div style={{ fontSize: '18px', color: primaryColor, fontWeight: '600', marginBottom: '10px' }}>
+                  Prepared by: {branding?.footerText || 'Your Company Name'}
+                </div>
+                <div style={{ fontSize: '16px', color: secondaryColor }}>
+                  Date: {new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        </CoverPage>
+          </CoverPage>
+        </Page>
 
-        {/* Table of Contents */}
-        <TableOfContents>
-          <div style={{
-            background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-            color: 'white',
-            padding: '30px',
-            borderRadius: '12px',
-            marginBottom: '30px',
-            textAlign: 'center'
-          }}>
-            <h2 style={{ margin: '0', fontSize: '28px', fontWeight: '700' }}>Table of Contents</h2>
-            <p style={{ margin: '10px 0 0 0', opacity: '0.9' }}>Navigate through our comprehensive proposal</p>
-          </div>
-          <div style={{ padding: '0 20px' }}>
-            {sortedSections.map((section, index) => (
-              <TOCItem key={section.id} primaryColor={primaryColor} style={{
-                padding: '15px 20px',
-                marginBottom: '8px',
-                background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
-                borderRadius: '8px',
-                border: `1px solid ${primaryColor}20`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}>
-                <span style={{ fontWeight: '500', color: primaryColor }}>{section.title}</span>
-                <span style={{
-                  background: primaryColor,
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: '14px',
-                  fontWeight: '600'
+        {/* Page 2: Table of Contents */}
+        <Page>
+          <TableOfContents>
+            <div style={{
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+              color: 'white',
+              padding: '30px',
+              borderRadius: '12px',
+              marginBottom: '30px',
+              textAlign: 'center'
+            }}>
+              <h2 style={{ margin: '0', fontSize: '28px', fontWeight: '700' }}>Table of Contents</h2>
+              <p style={{ margin: '10px 0 0 0', opacity: '0.9' }}>Navigate through our comprehensive proposal</p>
+            </div>
+            <div style={{ padding: '0 20px' }}>
+              {sortedSections.map((section, index) => (
+                <TOCItem key={section.id} primaryColor={primaryColor} style={{
+                  padding: '15px 20px',
+                  marginBottom: '8px',
+                  background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+                  borderRadius: '8px',
+                  border: `1px solid ${primaryColor}20`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
                 }}>
-                  {index + 1}
-                </span>
-              </TOCItem>
-            ))}
-          </div>
-        </TableOfContents>
+                  <span style={{ fontWeight: '500', color: primaryColor }}>{section.title}</span>
+                  <span style={{
+                    background: primaryColor,
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}>
+                    {index + 1}
+                  </span>
+                </TOCItem>
+              ))}
+            </div>
+          </TableOfContents>
+        </Page>
 
-        {/* Proposal Sections */}
-        {sortedSections.map(section => (
-          <SectionContainer key={section.id}>
-            <SectionTitle
-              primaryColor={primaryColor}
-              fontFamily={fontFamily}
-            >
-              {section.title}
-            </SectionTitle>
-            <SectionContent
-              primaryColor={primaryColor}
-              fontFamily={fontFamily}
-            >
-              {renderSectionContent(section)}
-            </SectionContent>
-          </SectionContainer>
-        ))}
+        {/* Page 3+: Proposal Sections */}
+        <Page>
+          {sortedSections.map(section => (
+            <SectionContainer key={section.id}>
+              <SectionTitle
+                primaryColor={primaryColor}
+                fontFamily={fontFamily}
+              >
+                {section.title}
+              </SectionTitle>
+              <SectionContent
+                primaryColor={primaryColor}
+                fontFamily={fontFamily}
+              >
+                {renderSectionContent(section)}
+              </SectionContent>
+            </SectionContainer>
+          ))}
 
-        {/* Footer */}
-        {branding?.footerText && (
-          <div style={{
-            marginTop: '60px',
-            paddingTop: '20px',
-            borderTop: `2px solid ${primaryColor}`,
-            textAlign: 'center',
-            color: secondaryColor,
-            fontFamily
-          }}>
-            {branding.footerText}
-          </div>
-        )}
+          {/* Footer */}
+          {branding?.footerText && (
+            <div style={{
+              marginTop: '60px',
+              paddingTop: '20px',
+              borderTop: `2px solid ${primaryColor}`,
+              textAlign: 'center',
+              color: secondaryColor,
+              fontFamily
+            }}>
+              {branding.footerText}
+            </div>
+          )}
+        </Page>
       </PreviewContent>
     </PreviewContainer>
   );
