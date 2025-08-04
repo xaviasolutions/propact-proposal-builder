@@ -37,12 +37,15 @@ const Watermark = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-45deg);
-  font-size: 120px;
-  color: rgba(0, 0, 0, 0.05);
-  font-weight: bold;
   pointer-events: none;
   z-index: 1;
-  white-space: nowrap;
+  opacity: 0.1;
+  
+  img {
+    max-width: 300px;
+    max-height: 200px;
+    object-fit: contain;
+  }
 `;
 
 const CoverPage = styled.div`
@@ -392,7 +395,7 @@ const ProposalPreview = (props) => {
     <PreviewContainer data-testid="proposal-preview">
       {branding?.watermark && (
         <Watermark>
-          {branding.watermark}
+          <img src={branding.watermark} alt="Watermark" />
         </Watermark>
       )}
 

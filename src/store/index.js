@@ -47,6 +47,11 @@ export const store = configureStore({
   devTools: process.env.NODE_ENV !== 'production',
 });
 
+// Make store globally accessible for exporters
+if (typeof window !== 'undefined') {
+  window.__REDUX_STORE__ = store;
+}
+
 // Create persistor
 export const persistor = persistStore(store);
 
