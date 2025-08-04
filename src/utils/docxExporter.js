@@ -16,7 +16,10 @@ import {
   Footer,
   ImageRun,
   convertInchesToTwip,
-  convertMillimetersToTwip
+  convertMillimetersToTwip,
+  HorizontalPositionAlign,
+  VerticalPositionAlign,
+  TextWrappingType
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -358,39 +361,38 @@ export const exportToDocx = async (proposal, branding = {}) => {
     // Create document sections
     const children = [];
 
-    // Handle logo if available
-    let logoImageRun = null;
+    // Create Title Page (First Page) - No headers/footers
+    const titlePageChildren = [];
+
+    // Add logo if available
     if (finalBranding?.logo) {
       try {
         const logoBuffer = await base64ToBuffer(finalBranding.logo);
-        const logoExtension = getImageExtension(finalBranding.logo);
         
         if (logoBuffer) {
-          logoImageRun = new ImageRun({
+          const logoImageRun = new ImageRun({
             data: logoBuffer,
             transformation: {
               width: 200,
               height: 100,
             },
           });
+          
+          titlePageChildren.push(
+            new Paragraph({
+              children: [logoImageRun],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 600 }
+            })
+          );
         }
       } catch (error) {
         console.warn('Could not process logo image:', error);
       }
     }
 
-    // Cover Page - Add logo first if available
-    if (logoImageRun) {
-      children.push(
-        new Paragraph({
-          children: [logoImageRun],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 400 }
-        })
-      );
-    }
-
-    children.push(
+    // Add proposal title
+    titlePageChildren.push(
       new Paragraph({
         children: [
           new TextRun({
@@ -403,7 +405,11 @@ export const exportToDocx = async (proposal, branding = {}) => {
         ],
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 }
-      }),
+      })
+    );
+
+    // Add subtitle
+    titlePageChildren.push(
       new Paragraph({
         children: [
           new TextRun({
@@ -418,14 +424,15 @@ export const exportToDocx = async (proposal, branding = {}) => {
       })
     );
 
-    if (branding?.headerText) {
-      children.push(
+    // Add selected client name if available
+    if (proposal.clientName) {
+      titlePageChildren.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: branding.headerText,
-              size: 24,
-              color: secondaryColor.replace('#', ''),
+              text: `Prepared for: ${proposal.clientName}`,
+              size: 32,
+              color: primaryColor.replace('#', ''),
               font: fontFamily
             })
           ],
@@ -435,15 +442,16 @@ export const exportToDocx = async (proposal, branding = {}) => {
       );
     }
 
-    // Add company info and date
-    children.push(
+    // Add company name and date
+    titlePageChildren.push(
       new Paragraph({
         children: [
           new TextRun({
-            text: `Prepared by: ${branding?.footerText || 'Your Company Name'}`,
+            text: `Prepared by: ${finalBranding?.companyName || 'Your Company Name'}`,
             bold: true,
             size: 28,
-            color: primaryColor.replace('#', '')
+            color: primaryColor.replace('#', ''),
+            font: fontFamily
           })
         ],
         alignment: AlignmentType.CENTER,
@@ -458,17 +466,19 @@ export const exportToDocx = async (proposal, branding = {}) => {
               day: 'numeric'
             })}`,
             size: 24,
-            color: secondaryColor.replace('#', '')
+            color: secondaryColor.replace('#', ''),
+            font: fontFamily
           })
         ],
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 }
-      }),
-      new PageBreak()
+      })
     );
 
-    // Table of Contents
-    children.push(
+    // Create Table of Contents Page
+    const tocChildren = [];
+    
+    tocChildren.push(
       new Paragraph({
         children: [
           new TextRun({
@@ -488,13 +498,14 @@ export const exportToDocx = async (proposal, branding = {}) => {
     );
 
     sortedSections.forEach((section, index) => {
-      children.push(
+      tocChildren.push(
         new Paragraph({
           children: [
             new TextRun({
               text: `${index + 1}. ${section.title}`,
               size: 28,
-              color: primaryColor.replace('#', '')
+              color: primaryColor.replace('#', ''),
+              font: fontFamily
             })
           ],
           spacing: { after: 200 }
@@ -502,12 +513,13 @@ export const exportToDocx = async (proposal, branding = {}) => {
       );
     });
 
-    children.push(new PageBreak());
+    // Create Content Pages
+    const contentChildren = [];
 
     // Proposal Sections
     sortedSections.forEach((section, sectionIndex) => {
       // Section Title
-      children.push(
+      contentChildren.push(
         new Paragraph({
           children: [
             new TextRun({
@@ -571,21 +583,21 @@ export const exportToDocx = async (proposal, branding = {}) => {
           break;
       }
 
-      children.push(...sectionContent);
+      contentChildren.push(...sectionContent);
 
       // Add page break between sections (except for the last one)
       if (sectionIndex < sortedSections.length - 1) {
-        children.push(new PageBreak());
+        contentChildren.push(new PageBreak());
       }
     });
 
     // Add footer if available
-    if (branding?.footerText) {
-      children.push(
+    if (finalBranding?.footerText) {
+      contentChildren.push(
         new Paragraph({
           children: [
             new TextRun({
-              text: branding.footerText,
+              text: finalBranding.footerText,
               size: 24,
               color: secondaryColor.replace('#', ''),
               font: fontFamily
@@ -597,38 +609,61 @@ export const exportToDocx = async (proposal, branding = {}) => {
       );
     }
 
-    // Handle watermark if available - add as background on first page
-    if (finalBranding?.watermark) {
-      try {
-        const watermarkBuffer = await base64ToBuffer(finalBranding.watermark);
-        const watermarkExtension = getImageExtension(finalBranding.watermark);
+    // Create watermark header if available
+    let watermarkHeader = null;
+    // if (finalBranding?.watermark) {
+    //   try {
+    //     const watermarkBuffer = await base64ToBuffer(finalBranding.watermark);
         
-        if (watermarkBuffer) {
-          const watermarkImageRun = new ImageRun({
-            data: watermarkBuffer,
-            transformation: {
-              width: 300,
-              height: 200,
-            },
-          });
+    //     if (watermarkBuffer) {
+    //       const watermarkImageRun = new ImageRun({
+    //         data: watermarkBuffer,
+    //         transformation: {
+    //           width: 600,  // Larger size for better coverage
+    //           height: 450, // Maintain aspect ratio
+    //         },
+    //         floating: {
+    //           horizontalPosition: {
+    //             align: HorizontalPositionAlign.CENTER,
+    //           },
+    //           verticalPosition: {
+    //             align: VerticalPositionAlign.CENTER,
+    //           },
+    //           wrap: {
+    //             type: TextWrappingType.BEHIND_TEXT,
+    //           },
+    //           margins: {
+    //             top: 0,
+    //             bottom: 0,
+    //             left: 0,
+    //             right: 0,
+    //           },
+    //           // Add properties for better watermark behavior
+    //           allowOverlap: true,
+    //           lockAnchor: true,
+    //         },
+    //       });
           
-          // Add watermark as first element with reduced opacity effect
-          children.unshift(
-            new Paragraph({
-              children: [watermarkImageRun],
-              alignment: AlignmentType.CENTER,
-              spacing: { after: 200 }
-            })
-          );
-        }
-      } catch (error) {
-        console.warn('Could not process watermark image:', error);
-      }
-    }
+    //       watermarkHeader = {
+    //         default: new Header({
+    //           children: [
+    //             new Paragraph({
+    //               children: [watermarkImageRun],
+    //               alignment: AlignmentType.CENTER,
+    //             })
+    //           ],
+    //         }),
+    //       };
+    //     }
+    //   } catch (error) {
+    //     console.warn('Could not process watermark image:', error);
+    //   }
+    // }
 
-    // Create the document
-    const doc = new Document({
-      sections: [{
+    // Create the document with separate sections
+    const sections = [
+      // Title Page Section (no headers/footers)
+      {
         properties: {
           page: {
             margin: {
@@ -636,11 +671,48 @@ export const exportToDocx = async (proposal, branding = {}) => {
               right: convertInchesToTwip(1),
               bottom: convertInchesToTwip(1),
               left: convertInchesToTwip(1)
-            }
+            },
+            pageBreakBefore: false
           }
         },
-        children: children
-      }]
+        children: titlePageChildren
+      },
+      // Table of Contents Section
+      {
+        properties: {
+          page: {
+            margin: {
+              top: convertInchesToTwip(1),
+              right: convertInchesToTwip(1),
+              bottom: convertInchesToTwip(1),
+              left: convertInchesToTwip(1)
+            },
+            pageBreakBefore: true
+          }
+        },
+        // headers: watermarkHeader,
+        children: tocChildren
+      },
+      // Content Section
+      {
+        properties: {
+          page: {
+            margin: {
+              top: convertInchesToTwip(1),
+              right: convertInchesToTwip(1),
+              bottom: convertInchesToTwip(1),
+              left: convertInchesToTwip(1)
+            },
+            pageBreakBefore: true
+          }
+        },
+        // headers: watermarkHeader,
+        children: contentChildren
+      }
+    ];
+
+    const doc = new Document({
+      sections: sections
     });
 
     // Generate and save the document

@@ -395,7 +395,7 @@ const ProposalPreview = (props) => {
     <PreviewContainer data-testid="proposal-preview">
       {branding?.watermark && (
         <Watermark>
-          <img src={branding.watermark} alt="Watermark" />
+          {branding.watermark}
         </Watermark>
       )}
 

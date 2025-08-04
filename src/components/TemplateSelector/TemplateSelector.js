@@ -309,7 +309,7 @@ const Button = styled.button`
   }
 `;
 
-const TemplateSelector = ({ isOpen, onClose, onSelect }) => {
+const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
   const { brandingTemplates } = useSelector(state => state.branding);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -324,7 +324,12 @@ const TemplateSelector = ({ isOpen, onClose, onSelect }) => {
 
   const handleNextStep = () => {
     if (currentStep === 1 && selectedTemplate) {
-      setCurrentStep(2);
+      // Skip cover selection for template change mode
+      if (mode === 'change') {
+        handleConfirm();
+      } else {
+        setCurrentStep(2);
+      }
     }
   };
 
@@ -368,7 +373,7 @@ const TemplateSelector = ({ isOpen, onClose, onSelect }) => {
       secondary: 'Georgia, serif'
     },
     logo: null,
-    watermark: null,
+    // watermark: null,
     headerText: '',
     footerText: ''
   };
@@ -378,27 +383,31 @@ const TemplateSelector = ({ isOpen, onClose, onSelect }) => {
       <ModalOverlay onClick={handleClose}>
         <ModalContent onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
-            <ModalTitle>Create New Proposal</ModalTitle>
+            <ModalTitle>
+              {mode === 'change' ? 'Change Template' : 'Create New Proposal'}
+            </ModalTitle>
             <CloseButton onClick={handleClose}>
               <FiX size={20} />
             </CloseButton>
           </ModalHeader>
 
-          <StepIndicator>
-            <Step active={currentStep === 1} completed={currentStep > 1}>
-              <StepNumber active={currentStep === 1} completed={currentStep > 1}>
-                {currentStep > 1 ? <FiCheck size={12} /> : '1'}
-              </StepNumber>
-              Branding Template
-            </Step>
-            <StepDivider completed={currentStep > 1} />
-            <Step active={currentStep === 2}>
-              <StepNumber active={currentStep === 2}>
-                2
-              </StepNumber>
-              Cover Template (Optional)
-            </Step>
-          </StepIndicator>
+          {mode !== 'change' && (
+            <StepIndicator>
+              <Step active={currentStep === 1} completed={currentStep > 1}>
+                <StepNumber active={currentStep === 1} completed={currentStep > 1}>
+                  {currentStep > 1 ? <FiCheck size={12} /> : '1'}
+                </StepNumber>
+                Branding Template
+              </Step>
+              <StepDivider completed={currentStep > 1} />
+              <Step active={currentStep === 2}>
+                <StepNumber active={currentStep === 2}>
+                  2
+                </StepNumber>
+                Cover Template (Optional)
+              </Step>
+            </StepIndicator>
+          )}
 
           {currentStep === 1 && (
             <>
@@ -526,7 +535,7 @@ const TemplateSelector = ({ isOpen, onClose, onSelect }) => {
                   onClick={handleNextStep}
                   disabled={!selectedTemplate}
                 >
-                  Next: Cover Template
+                  {mode === 'change' ? 'Change Template' : 'Next: Cover Template'}
                 </Button>
               ) : (
                 <Button 

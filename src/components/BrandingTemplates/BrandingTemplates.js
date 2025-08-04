@@ -6,6 +6,7 @@ import { ChromePicker } from 'react-color';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
   addBrandingTemplate, 
+  updateBrandingTemplate,
   deleteBrandingTemplate, 
   setCurrentBranding, 
   updateCurrentBranding 
@@ -305,12 +306,31 @@ const SaveButton = styled.button`
   }
 `;
 
+const Button = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: ${props => props.background || '#007bff'};
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
 const BrandingTemplates = () => {
   const dispatch = useDispatch();
   const { brandingTemplates, currentBranding } = useSelector(state => state.branding);
   const [activeTab, setActiveTab] = useState('templates');
   const [showColorPicker, setShowColorPicker] = useState({});
   const [templateName, setTemplateName] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState(null);
 
   const fontOptions = [
     'Arial, sans-serif',
@@ -338,18 +358,18 @@ const BrandingTemplates = () => {
     }
   };
 
-  const onWatermarkDrop = (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        dispatch(updateCurrentBranding({
-          watermark: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // const onWatermarkDrop = (acceptedFiles) => {
+  //   const file = acceptedFiles[0];
+  //   if (file) {
+  //     const reader = new FileReader();
+  //     reader.onload = () => {
+  //       dispatch(updateCurrentBranding({
+  //         watermark: reader.result
+  //       }));
+  //     };
+  //     reader.readAsDataURL(file);
+  //   }
+  // };
 
   const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
     onDrop: onLogoDrop,
@@ -359,13 +379,13 @@ const BrandingTemplates = () => {
     multiple: false
   });
 
-  const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
-    onDrop: onWatermarkDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
-    },
-    multiple: false
-  });
+  // const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
+  //   onDrop: onWatermarkDrop,
+  //   accept: {
+  //     'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+  //   },
+  //   multiple: false
+  // });
 
   const handleColorChange = (field, color) => {
     dispatch(updateCurrentBranding({
@@ -398,19 +418,42 @@ const BrandingTemplates = () => {
       return;
     }
 
-    const template = {
-      ...currentBranding,
-      name: templateName,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString()
-    };
+    if (editingTemplate) {
+      // Update existing template
+      const updatedTemplate = {
+        ...currentBranding,
+        name: templateName,
+        id: editingTemplate.id,
+        createdAt: editingTemplate.createdAt
+      };
+      
+      dispatch(updateBrandingTemplate({ id: editingTemplate.id, updates: updatedTemplate }));
+      setEditingTemplate(null);
+      alert('Template updated successfully!');
+    } else {
+      // Create new template
+      const template = {
+        ...currentBranding,
+        name: templateName,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString()
+      };
 
-    dispatch(addBrandingTemplate(template));
+      dispatch(addBrandingTemplate(template));
+      alert('Template saved successfully!');
+    }
+    
     setTemplateName('');
-    alert('Template saved successfully!');
   };
 
   const handleLoadTemplate = (template) => {
+    dispatch(setCurrentBranding(template));
+    setActiveTab('editor');
+  };
+
+  const handleEditTemplate = (template) => {
+    setEditingTemplate(template);
+    setTemplateName(template.name);
     dispatch(setCurrentBranding(template));
     setActiveTab('editor');
   };
@@ -450,14 +493,23 @@ const BrandingTemplates = () => {
       <TabContainer>
         <Tab 
           active={activeTab === 'templates'} 
-          onClick={() => setActiveTab('templates')}
+          onClick={() => {
+            setActiveTab('templates');
+            setEditingTemplate(null);
+            setTemplateName('');
+          }}
         >
           <FiLayout size={16} />
           Templates
         </Tab>
         <Tab 
           active={activeTab === 'editor'} 
-          onClick={() => setActiveTab('editor')}
+          onClick={() => {
+            setActiveTab('editor');
+            if (!editingTemplate) {
+              setTemplateName('');
+            }
+          }}
         >
           <FiEdit3 size={16} />
           Brand Editor
@@ -486,6 +538,12 @@ const BrandingTemplates = () => {
                     <TemplateHeader>
                       <TemplateName>{template.name}</TemplateName>
                       <TemplateActions>
+                        <ActionButton onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTemplate(template);
+                        }}>
+                          <FiEdit3 size={12} />
+                        </ActionButton>
                         <ActionButton onClick={(e) => {
                           e.stopPropagation();
                           handleDuplicateTemplate(template);
@@ -560,7 +618,7 @@ const BrandingTemplates = () => {
                   </DropzoneArea>
                 </FormGroup>
 
-                <FormGroup>
+                {/* <FormGroup>
                   <Label>Watermark (Optional)</Label>
                   <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
                     <input {...getWatermarkInputProps()} />
@@ -584,7 +642,7 @@ const BrandingTemplates = () => {
                       </div>
                     )}
                   </DropzoneArea>
-                </FormGroup>
+                </FormGroup> */}
               </FormGrid>
             </EditorSection>
 
@@ -691,10 +749,20 @@ const BrandingTemplates = () => {
             <EditorSection style={{ marginTop: '20px' }}>
               <SectionTitle>
                 <FiLayout size={20} />
-                Headers & Footers
+                Company Information
               </SectionTitle>
               
               <FormGrid>
+                <FormGroup>
+                  <Label>Company Name</Label>
+                  <Input
+                    type="text"
+                    value={currentBranding.companyName || ''}
+                    onChange={(e) => handleInputChange('companyName', e.target.value)}
+                    placeholder="Your Company Name"
+                  />
+                </FormGroup>
+
                 <FormGroup>
                   <Label>Header Text</Label>
                   <TextArea
@@ -725,8 +793,20 @@ const BrandingTemplates = () => {
               />
               <SaveButton onClick={handleSaveTemplate}>
                 <FiSave size={16} />
-                Save as Template
+                {editingTemplate ? 'Update Template' : 'Save as Template'}
               </SaveButton>
+              {editingTemplate && (
+                <Button 
+                  onClick={() => {
+                    setEditingTemplate(null);
+                    setTemplateName('');
+                    setActiveTab('templates');
+                  }}
+                  style={{ background: '#6c757d' }}
+                >
+                  Cancel Edit
+                </Button>
+              )}
             </div>
           </div>
         )}
