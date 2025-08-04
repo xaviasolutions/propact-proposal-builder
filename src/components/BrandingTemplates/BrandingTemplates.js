@@ -1,0 +1,738 @@
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { FiSettings, FiUpload, FiSave, FiTrash2, FiCopy, FiEdit3, FiImage, FiType, FiLayout } from 'react-icons/fi';
+import { useDropzone } from 'react-dropzone';
+import { ChromePicker } from 'react-color';
+import { useSelector, useDispatch } from 'react-redux';
+import { 
+  addBrandingTemplate, 
+  deleteBrandingTemplate, 
+  setCurrentBranding, 
+  updateCurrentBranding 
+} from '../../store/slices/brandingSlice';
+
+const BrandingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const Title = styled.h2`
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 20px;
+`;
+
+const Tab = styled.button`
+  padding: 12px 20px;
+  border: none;
+  background: ${props => props.active ? '#007bff' : 'transparent'};
+  color: ${props => props.active ? 'white' : '#666'};
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background: ${props => props.active ? '#007bff' : '#f8f9fa'};
+  }
+`;
+
+const ContentArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+`;
+
+const TemplateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+`;
+
+const TemplateCard = styled.div`
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.1);
+  }
+
+  ${props => props.active && `
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.1);
+  `}
+`;
+
+const TemplateHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+`;
+
+const TemplateName = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+`;
+
+const TemplateActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ActionButton = styled.button`
+  padding: 4px 8px;
+  border: 1px solid ${props => props.danger ? '#dc3545' : '#007bff'};
+  background: white;
+  color: ${props => props.danger ? '#dc3545' : '#007bff'};
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${props => props.danger ? '#dc3545' : '#007bff'};
+    color: white;
+  }
+`;
+
+const TemplatePreview = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+`;
+
+const ColorSwatch = styled.div`
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: ${props => props.color};
+  border: 1px solid #e0e0e0;
+`;
+
+const LogoPreview = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+`;
+
+const TemplateInfo = styled.div`
+  font-size: 12px;
+  color: #666;
+`;
+
+const EditorSection = styled.div`
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const Label = styled.label`
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  font-size: 14px;
+`;
+
+const Input = styled.input`
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
+`;
+
+const Select = styled.select`
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  background: white;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
+`;
+
+const TextArea = styled.textarea`
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
+`;
+
+const DropzoneArea = styled.div`
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => props.isDragActive ? '#f8f9ff' : '#fafafa'};
+  border-color: ${props => props.isDragActive ? '#007bff' : '#e0e0e0'};
+
+  &:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+  }
+`;
+
+const ColorPickerContainer = styled.div`
+  position: relative;
+`;
+
+const ColorButton = styled.button`
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: ${props => props.color};
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #007bff;
+  }
+`;
+
+const ColorPickerPopover = styled.div`
+  position: absolute;
+  top: 50px;
+  left: 0;
+  z-index: 100;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+`;
+
+const SaveButton = styled.button`
+  padding: 12px 20px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #0056b3;
+  }
+`;
+
+const BrandingTemplates = () => {
+  const dispatch = useDispatch();
+  const { brandingTemplates, currentBranding } = useSelector(state => state.branding);
+  const [activeTab, setActiveTab] = useState('templates');
+  const [showColorPicker, setShowColorPicker] = useState({});
+  const [templateName, setTemplateName] = useState('');
+
+  const fontOptions = [
+    'Arial, sans-serif',
+    'Helvetica, sans-serif',
+    'Georgia, serif',
+    'Times New Roman, serif',
+    'Roboto, sans-serif',
+    'Open Sans, sans-serif',
+    'Lato, sans-serif',
+    'Montserrat, sans-serif',
+    'Poppins, sans-serif',
+    'Inter, sans-serif'
+  ];
+
+  const onLogoDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        dispatch(updateCurrentBranding({
+          logo: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onWatermarkDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        dispatch(updateCurrentBranding({
+          watermark: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
+    onDrop: onLogoDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+    },
+    multiple: false
+  });
+
+  const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
+    onDrop: onWatermarkDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+    },
+    multiple: false
+  });
+
+  const handleColorChange = (field, color) => {
+    dispatch(updateCurrentBranding({
+      colors: {
+        ...currentBranding.colors,
+        [field]: color.hex
+      }
+    }));
+  };
+
+  const handleInputChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      dispatch(updateCurrentBranding({
+        [parent]: {
+          ...currentBranding[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      dispatch(updateCurrentBranding({
+        [field]: value
+      }));
+    }
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+
+    const template = {
+      ...currentBranding,
+      name: templateName,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString()
+    };
+
+    dispatch(addBrandingTemplate(template));
+    setTemplateName('');
+    alert('Template saved successfully!');
+  };
+
+  const handleLoadTemplate = (template) => {
+    dispatch(setCurrentBranding(template));
+    setActiveTab('editor');
+  };
+
+  const handleDeleteTemplate = (templateId) => {
+    if (window.confirm('Are you sure you want to delete this template?')) {
+      dispatch(deleteBrandingTemplate(templateId));
+    }
+  };
+
+  const handleDuplicateTemplate = (template) => {
+    const duplicated = {
+      ...template,
+      name: `${template.name} (Copy)`,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString()
+    };
+    dispatch(addBrandingTemplate(duplicated));
+  };
+
+  const toggleColorPicker = (field) => {
+    setShowColorPicker(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  return (
+    <BrandingContainer>
+      <Header>
+        <Title>
+          <FiSettings size={24} />
+          Branding & Templates
+        </Title>
+      </Header>
+
+      <TabContainer>
+        <Tab 
+          active={activeTab === 'templates'} 
+          onClick={() => setActiveTab('templates')}
+        >
+          <FiLayout size={16} />
+          Templates
+        </Tab>
+        <Tab 
+          active={activeTab === 'editor'} 
+          onClick={() => setActiveTab('editor')}
+        >
+          <FiEdit3 size={16} />
+          Brand Editor
+        </Tab>
+      </TabContainer>
+
+      <ContentArea>
+        {activeTab === 'templates' && (
+          <div>
+            <SectionTitle>
+              <FiLayout size={20} />
+              Saved Templates
+            </SectionTitle>
+            
+            {brandingTemplates.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
+                No templates saved yet. Create your first branding template in the Brand Editor!
+              </div>
+            ) : (
+              <TemplateGrid>
+                {brandingTemplates.map(template => (
+                  <TemplateCard 
+                    key={template.id}
+                    onClick={() => handleLoadTemplate(template)}
+                  >
+                    <TemplateHeader>
+                      <TemplateName>{template.name}</TemplateName>
+                      <TemplateActions>
+                        <ActionButton onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicateTemplate(template);
+                        }}>
+                          <FiCopy size={12} />
+                        </ActionButton>
+                        <ActionButton 
+                          danger 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTemplate(template.id);
+                          }}
+                        >
+                          <FiTrash2 size={12} />
+                        </ActionButton>
+                      </TemplateActions>
+                    </TemplateHeader>
+                    
+                    <TemplatePreview>
+                      {template.logo && (
+                        <LogoPreview>
+                          <img src={template.logo} alt="Logo" />
+                        </LogoPreview>
+                      )}
+                      <ColorSwatch color={template.colors?.primary || '#007bff'} />
+                      <ColorSwatch color={template.colors?.secondary || '#6c757d'} />
+                      <ColorSwatch color={template.colors?.accent || '#28a745'} />
+                    </TemplatePreview>
+                    
+                    <TemplateInfo>
+                      Font: {template.fonts?.primary || 'Arial, sans-serif'}
+                    </TemplateInfo>
+                  </TemplateCard>
+                ))}
+              </TemplateGrid>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'editor' && (
+          <div>
+            <EditorSection>
+              <SectionTitle>
+                <FiImage size={20} />
+                Logo & Images
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label>Company Logo</Label>
+                  <DropzoneArea {...getLogoRootProps()} isDragActive={isLogoDragActive}>
+                    <input {...getLogoInputProps()} />
+                    {currentBranding.logo ? (
+                      <div>
+                        <img 
+                          src={currentBranding.logo} 
+                          alt="Logo" 
+                          style={{ maxWidth: '100px', maxHeight: '60px' }}
+                        />
+                        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#666' }}>
+                          Click or drag to replace
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <FiUpload size={24} style={{ color: '#666', marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
+                          Drop logo here or click to upload
+                        </p>
+                      </div>
+                    )}
+                  </DropzoneArea>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Watermark (Optional)</Label>
+                  <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
+                    <input {...getWatermarkInputProps()} />
+                    {currentBranding.watermark ? (
+                      <div>
+                        <img 
+                          src={currentBranding.watermark} 
+                          alt="Watermark" 
+                          style={{ maxWidth: '100px', maxHeight: '60px', opacity: 0.5 }}
+                        />
+                        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#666' }}>
+                          Click or drag to replace
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <FiImage size={24} style={{ color: '#666', marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
+                          Drop watermark here or click to upload
+                        </p>
+                      </div>
+                    )}
+                  </DropzoneArea>
+                </FormGroup>
+              </FormGrid>
+            </EditorSection>
+
+            <EditorSection style={{ marginTop: '20px' }}>
+              <SectionTitle>
+                <FiSettings size={20} />
+                Color Scheme
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label>Primary Color</Label>
+                  <ColorPickerContainer>
+                    <ColorButton 
+                      color={currentBranding.colors?.primary || '#007bff'}
+                      onClick={() => toggleColorPicker('primary')}
+                    />
+                    {showColorPicker.primary && (
+                      <ColorPickerPopover>
+                        <ChromePicker
+                          color={currentBranding.colors?.primary || '#007bff'}
+                          onChange={(color) => handleColorChange('primary', color)}
+                        />
+                      </ColorPickerPopover>
+                    )}
+                  </ColorPickerContainer>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Secondary Color</Label>
+                  <ColorPickerContainer>
+                    <ColorButton 
+                      color={currentBranding.colors?.secondary || '#6c757d'}
+                      onClick={() => toggleColorPicker('secondary')}
+                    />
+                    {showColorPicker.secondary && (
+                      <ColorPickerPopover>
+                        <ChromePicker
+                          color={currentBranding.colors?.secondary || '#6c757d'}
+                          onChange={(color) => handleColorChange('secondary', color)}
+                        />
+                      </ColorPickerPopover>
+                    )}
+                  </ColorPickerContainer>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Accent Color</Label>
+                  <ColorPickerContainer>
+                    <ColorButton 
+                      color={currentBranding.colors?.accent || '#28a745'}
+                      onClick={() => toggleColorPicker('accent')}
+                    />
+                    {showColorPicker.accent && (
+                      <ColorPickerPopover>
+                        <ChromePicker
+                          color={currentBranding.colors?.accent || '#28a745'}
+                          onChange={(color) => handleColorChange('accent', color)}
+                        />
+                      </ColorPickerPopover>
+                    )}
+                  </ColorPickerContainer>
+                </FormGroup>
+              </FormGrid>
+            </EditorSection>
+
+            <EditorSection style={{ marginTop: '20px' }}>
+              <SectionTitle>
+                <FiType size={20} />
+                Typography
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label>Primary Font</Label>
+                  <Select
+                    value={currentBranding.fonts?.primary || 'Arial, sans-serif'}
+                    onChange={(e) => handleInputChange('fonts.primary', e.target.value)}
+                  >
+                    {fontOptions.map(font => (
+                      <option key={font} value={font}>
+                        {font.split(',')[0]}
+                      </option>
+                    ))}
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Secondary Font</Label>
+                  <Select
+                    value={currentBranding.fonts?.secondary || 'Georgia, serif'}
+                    onChange={(e) => handleInputChange('fonts.secondary', e.target.value)}
+                  >
+                    {fontOptions.map(font => (
+                      <option key={font} value={font}>
+                        {font.split(',')[0]}
+                      </option>
+                    ))}
+                  </Select>
+                </FormGroup>
+              </FormGrid>
+            </EditorSection>
+
+            <EditorSection style={{ marginTop: '20px' }}>
+              <SectionTitle>
+                <FiLayout size={20} />
+                Headers & Footers
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label>Header Text</Label>
+                  <TextArea
+                    value={currentBranding.headerText || ''}
+                    onChange={(e) => handleInputChange('headerText', e.target.value)}
+                    placeholder="Header content for proposals..."
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Footer Text</Label>
+                  <TextArea
+                    value={currentBranding.footerText || ''}
+                    onChange={(e) => handleInputChange('footerText', e.target.value)}
+                    placeholder="Footer content for proposals..."
+                  />
+                </FormGroup>
+              </FormGrid>
+            </EditorSection>
+
+            <div style={{ marginTop: '30px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <Input
+                type="text"
+                placeholder="Template name..."
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                style={{ maxWidth: '200px' }}
+              />
+              <SaveButton onClick={handleSaveTemplate}>
+                <FiSave size={16} />
+                Save as Template
+              </SaveButton>
+            </div>
+          </div>
+        )}
+      </ContentArea>
+    </BrandingContainer>
+  );
+};
+
+export default BrandingTemplates;
