@@ -54,6 +54,40 @@ const base64ToBuffer = async (base64String) => {
   }
 };
 
+// Helper function to get image dimensions from base64 data URL
+const getImageDimensions = (base64String) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+    };
+    img.onerror = () => {
+      resolve({ width: 150, height: 150 }); // Default fallback
+    };
+    img.src = base64String;
+  });
+};
+
+// Helper function to calculate contained dimensions (like resizeMode: contain)
+const calculateContainedDimensions = (originalWidth, originalHeight, containerWidth, containerHeight) => {
+  const aspectRatio = originalWidth / originalHeight;
+  const containerAspectRatio = containerWidth / containerHeight;
+  
+  let finalWidth, finalHeight;
+  
+  if (aspectRatio > containerAspectRatio) {
+    // Image is wider than container - fit to width
+    finalWidth = containerWidth;
+    finalHeight = containerWidth / aspectRatio;
+  } else {
+    // Image is taller than container - fit to height
+    finalHeight = containerHeight;
+    finalWidth = containerHeight * aspectRatio;
+  }
+  
+  return { width: Math.round(finalWidth), height: Math.round(finalHeight) };
+};
+
 // Helper function to get image extension from base64 data URL
 const getImageExtension = (base64String) => {
   const match = base64String.match(/^data:image\/([a-z]+);base64,/);
@@ -464,11 +498,26 @@ export const exportToDocx = async (proposal, branding = {}) => {
         const logoBuffer = await base64ToBuffer(finalBranding.logo);
         
         if (logoBuffer) {
+          // Get original image dimensions
+          const imageDimensions = await getImageDimensions(finalBranding.logo);
+          
+          // Define container size (like a 150x150 box)
+          const containerWidth = 150;
+          const containerHeight = 150;
+          
+          // Calculate contained dimensions (resizeMode: contain)
+          const containedDimensions = calculateContainedDimensions(
+            imageDimensions.width,
+            imageDimensions.height,
+            containerWidth,
+            containerHeight
+          );
+          
           const logoImageRun = new ImageRun({
             data: logoBuffer,
             transformation: {
-              width: 200,
-              height: 100,
+              width: containedDimensions.width,
+              height: containedDimensions.height,
             },
           });
           
