@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { FiSave, FiType, FiFileText, FiUsers, FiBriefcase, FiTable } from 'react-icons/fi';
+import { FiSave, FiType, FiFileText, FiUsers, FiBriefcase, FiTable, FiStar, FiMinus } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 
 const EditorContainer = styled.div`
@@ -256,11 +256,13 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [selectedCoverId, setSelectedCoverId] = useState(null);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
   const [selectedCaseStudies, setSelectedCaseStudies] = useState([]);
+  const [selectedServices, setSelectedServices] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
   const caseStudies = useSelector(state => state.caseStudies.caseStudies);
+  const services = useSelector(state => state.services.services);
   const clients = useSelector(state => state.clients.clients);
   const currentProposal = useSelector(state => state.proposals.currentProposal);
 
@@ -276,6 +278,9 @@ const SectionEditor = ({ section, onUpdate }) => {
     }
     if (section.selectedCaseStudies) {
       setSelectedCaseStudies(section.selectedCaseStudies);
+    }
+    if (section.selectedServices) {
+      setSelectedServices(section.selectedServices);
     }
     if (section.selectedCoverId) {
       setSelectedCoverId(section.selectedCoverId);
@@ -298,6 +303,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       content,
       selectedTeamMembers,
       selectedCaseStudies,
+      selectedServices,
       selectedCoverId
     });
     setHasChanges(false);
@@ -341,13 +347,37 @@ const SectionEditor = ({ section, onUpdate }) => {
             <h4>${member.name}</h4>
             <p><strong>Position:</strong> ${member.position || 'Team Member'}</p>
             <p><strong>Experience:</strong> ${member.experience || 'Not specified'}</p>
-            <div><strong>CV:</strong></div>
-            <div>${member.cv || 'CV content not available'}</div>
+            <p><strong>Skills:</strong> ${member.skills || 'Not specified'}</p>
+            ${member.bio ? `<p><strong>Bio:</strong> ${member.bio}</p>` : ''}
           </div>
         `;
       }
     });
     return teamContent;
+  };
+
+  const generateCVContent = () => {
+    if (selectedTeamMembers.length === 0) return '';
+    
+    let cvContent = '<h3>Team CVs</h3>';
+    selectedTeamMembers.forEach(memberId => {
+      const member = teamMembers.find(tm => tm.id === memberId);
+      if (member) {
+        cvContent += `
+          <div style="margin-bottom: 32px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <h4>${member.name} - CV</h4>
+            <p><strong>Position:</strong> ${member.position || 'Team Member'}</p>
+            <div style="margin-top: 16px;">
+              <strong>Curriculum Vitae:</strong>
+              <div style="margin-top: 8px; padding: 12px; background-color: #f9f9f9; border-radius: 4px;">
+                ${member.cv || 'CV content not available'}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    });
+    return cvContent;
   };
 
   const generateCaseStudyContent = () => {
@@ -368,6 +398,43 @@ const SectionEditor = ({ section, onUpdate }) => {
       }
     });
     return caseStudyContent;
+  };
+
+  const generateServiceContent = () => {
+    if (selectedServices.length === 0) return '';
+    
+    let serviceContent = '<h3>Our Services</h3>';
+    selectedServices.forEach(serviceId => {
+      const service = services.find(s => s.id === serviceId);
+      if (service) {
+        serviceContent += `
+          <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <h4>${service.name}</h4>
+            <p><strong>Category:</strong> ${service.category || 'Not specified'}</p>
+            <p><strong>Price:</strong> ${service.price || 'Contact for pricing'}</p>
+            <p><strong>Duration:</strong> ${service.duration || 'Not specified'}</p>
+            <div style="margin-top: 12px;">${service.description || 'No description available'}</div>
+            ${service.deliverables && service.deliverables.length > 0 ? `
+              <div style="margin-top: 12px;">
+                <strong>Deliverables:</strong>
+                <ul style="margin-top: 8px; padding-left: 20px;">
+                  ${service.deliverables.map(deliverable => `<li>${deliverable}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            ${service.features && service.features.length > 0 ? `
+              <div style="margin-top: 12px;">
+                <strong>Key Features:</strong>
+                <ul style="margin-top: 8px; padding-left: 20px;">
+                  ${service.features.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+    });
+    return serviceContent;
   };
 
   const handleTitleChange = (e) => {
@@ -406,6 +473,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'case-study', label: 'Case Study' },
     { value: 'services', label: 'Services' },
     { value: 'testimonials', label: 'Testimonials' },
+    // { value: 'page-break', label: 'Page Break' },
     { value: 'custom', label: 'Custom Section' }
   ];
 
@@ -540,11 +608,11 @@ const SectionEditor = ({ section, onUpdate }) => {
           </ItemGrid>
           {selectedTeamMembers.length > 0 && (
             <TableButton onClick={() => {
-              const teamContent = generateTeamContent();
-              setContent(content + teamContent);
+              const contentToInsert = type === 'cvs' ? generateCVContent() : generateTeamContent();
+              setContent(content + contentToInsert);
               setHasChanges(true);
             }}>
-              Insert Selected Team Members
+              {type === 'cvs' ? 'Insert Selected Team CVs' : 'Insert Selected Team Members'}
             </TableButton>
           )}
         </SelectorContainer>
@@ -588,6 +656,73 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
+      {/* Service Selection */}
+      {type === 'services' && (
+        <SelectorContainer>
+          <SelectorTitle>
+            <FiStar />
+            Select Services
+          </SelectorTitle>
+          <ItemGrid>
+            {services.map(service => (
+              <ItemCard
+                key={service.id}
+                className={selectedServices.includes(service.id) ? 'selected' : ''}
+                onClick={() => {
+                  const newSelection = selectedServices.includes(service.id)
+                    ? selectedServices.filter(id => id !== service.id)
+                    : [...selectedServices, service.id];
+                  setSelectedServices(newSelection);
+                  setHasChanges(true);
+                }}
+              >
+                <ItemTitle>{service.name}</ItemTitle>
+                <ItemSubtitle>{service.category || 'Service'}</ItemSubtitle>
+                <ItemPreview>{stripHtmlTags(service.description || '').substring(0, 100)}...</ItemPreview>
+              </ItemCard>
+            ))}
+          </ItemGrid>
+          {selectedServices.length > 0 && (
+            <TableButton onClick={() => {
+              const serviceContent = generateServiceContent();
+              setContent(content + serviceContent);
+              setHasChanges(true);
+            }}>
+              Insert Selected Services
+            </TableButton>
+          )}
+        </SelectorContainer>
+      )}
+
+      {/* Page Break Section */}
+      {type === 'page-break' && (
+        <SelectorContainer>
+          <SelectorTitle>
+            <FiMinus />
+            Page Break
+          </SelectorTitle>
+          <div style={{ 
+            padding: '20px', 
+            textAlign: 'center', 
+            backgroundColor: '#f8f9fa', 
+            border: '2px dashed #dee2e6', 
+            borderRadius: '8px',
+            margin: '10px 0'
+          }}>
+            <p style={{ margin: '0 0 15px 0', color: '#6c757d', fontSize: '14px' }}>
+              This section will create a page break in your proposal when exported to PDF.
+            </p>
+            <TableButton onClick={() => {
+              const pageBreakContent = '<div style="page-break-before: always; height: 1px; visibility: hidden;"><!-- Page Break --></div>';
+              setContent(pageBreakContent);
+              setHasChanges(true);
+            }}>
+              Insert Page Break
+            </TableButton>
+          </div>
+        </SelectorContainer>
+      )}
+
       {/* Table Functionality for Fees & Timeline */}
       {type === 'fees' && (
         <SelectorContainer>
@@ -609,19 +744,22 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
-      <FormGroup>
-        <Label>Content</Label>
-        <QuillContainer>
-          <ReactQuill
-            theme="snow"
-            value={content}
-            onChange={handleContentChange}
-            modules={quillModules}
-            formats={quillFormats}
-            placeholder="Start writing your section content..."
-          />
-        </QuillContainer>
-      </FormGroup>
+      {/* Content Editor - Hidden for page break sections */}
+      {type !== 'page-break' && (
+        <FormGroup>
+          <Label>Content</Label>
+          <QuillContainer>
+            <ReactQuill
+              theme="snow"
+              value={content}
+              onChange={handleContentChange}
+              modules={quillModules}
+              formats={quillFormats}
+              placeholder="Start writing your section content..."
+            />
+          </QuillContainer>
+        </FormGroup>
+      )}
     </EditorContainer>
   );
 };

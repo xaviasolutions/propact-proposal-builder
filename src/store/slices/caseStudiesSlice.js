@@ -12,7 +12,7 @@ const initialState = {
       results: '300% improvement in page load times, 99.9% uptime, 40% increase in conversions',
       duration: '6 months',
       budget: '$150,000',
-      tags: 'E-commerce, React, Node.js, AWS',
+      tags: ['E-commerce', 'React', 'Node.js', 'AWS'],
       testimonial: 'Outstanding work! The new platform exceeded our expectations.',
       createdAt: new Date().toISOString()
     },
@@ -26,7 +26,7 @@ const initialState = {
       results: '50% reduction in administrative time, improved patient satisfaction scores',
       duration: '4 months',
       budget: '$80,000',
-      tags: 'Healthcare, Custom Development, Automation',
+      tags: ['Healthcare', 'Custom Development', 'Automation'],
       testimonial: 'The system has transformed how we manage our practice.',
       createdAt: new Date().toISOString()
     },
@@ -40,7 +40,7 @@ const initialState = {
       results: 'Enabled faster decision-making, reduced reporting time by 80%',
       duration: '3 months',
       budget: '$120,000',
-      tags: 'Finance, Analytics, Data Visualization, D3.js',
+      tags: ['Finance', 'Analytics', 'Data Visualization', 'D3.js'],
       testimonial: 'The dashboard provides insights we never had before.',
       createdAt: new Date().toISOString()
     },
@@ -54,7 +54,7 @@ const initialState = {
       results: '200% increase in student engagement, 95% completion rates',
       duration: '5 months',
       budget: '$100,000',
-      tags: 'Mobile, Education, React Native, Gamification',
+      tags: ['Mobile', 'Education', 'React Native', 'Gamification'],
       testimonial: 'Students love the app and engagement has skyrocketed.',
       createdAt: new Date().toISOString()
     }

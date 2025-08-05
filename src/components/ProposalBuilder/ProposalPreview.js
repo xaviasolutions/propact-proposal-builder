@@ -272,13 +272,17 @@ const ProposalPreview = (props) => {
   const renderSectionContent = (section) => {
     switch (section.type) {
       case 'team':
-      case 'cvs':
+        const selectedTeamMembersForTeam = section.selectedTeamMembers || [];
+        const selectedTeamMembersData = selectedTeamMembersForTeam.map(id => 
+          teamMembers.find(member => member.id === id)
+        ).filter(Boolean);
+        
         return (
           <div>
             <div dangerouslySetInnerHTML={{ __html: section.content }} />
-            {teamMembers.length > 0 ? (
+            {selectedTeamMembersData.length > 0 ? (
               <TeamGrid>
-                {teamMembers.map(member => (
+                {selectedTeamMembersData.map(member => (
                   <TeamMemberCard key={member.id}>
                     <MemberPhoto photo={member.photo} />
                     <MemberName primaryColor={primaryColor}>{member.name}</MemberName>
@@ -291,7 +295,56 @@ const ProposalPreview = (props) => {
                 ))}
               </TeamGrid>
             ) : (
-              <p style={{ color: '#666', fontStyle: 'italic' }}>No team members added yet. Add team members in the Content Manager.</p>
+              <p style={{ color: '#666', fontStyle: 'italic' }}>No team members selected for this section.</p>
+            )}
+          </div>
+        );
+
+      case 'cvs':
+        const selectedTeamMembersForCVs = section.selectedTeamMembers || [];
+        const selectedCVMembersData = selectedTeamMembersForCVs.map(id => 
+          teamMembers.find(member => member.id === id)
+        ).filter(Boolean);
+        
+        return (
+          <div>
+            <div dangerouslySetInnerHTML={{ __html: section.content }} />
+            {selectedCVMembersData.length > 0 ? (
+              <div>
+                {selectedCVMembersData.map(member => (
+                  <div key={member.id} style={{
+                    marginBottom: '32px',
+                    padding: '20px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '8px',
+                    backgroundColor: '#f9f9f9'
+                  }}>
+                    <h4 style={{ color: primaryColor, marginBottom: '10px' }}>{member.name} - CV</h4>
+                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                      <strong>Position:</strong> {member.position || 'Team Member'}
+                    </p>
+                    <div style={{ marginTop: '15px' }}>
+                      <strong style={{ color: primaryColor }}>Curriculum Vitae:</strong>
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '15px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        lineHeight: '1.6'
+                      }}>
+                        {member.cv ? (
+                          <div dangerouslySetInnerHTML={{ __html: member.cv }} />
+                        ) : (
+                          <p style={{ color: '#666', fontStyle: 'italic' }}>CV content not available</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#666', fontStyle: 'italic' }}>No team members selected for CVs section.</p>
             )}
           </div>
         );
@@ -373,6 +426,17 @@ const ProposalPreview = (props) => {
             border: `2px solid ${primaryColor}20`
           }}>
             <div dangerouslySetInnerHTML={{ __html: section.content || '<p style="color: #666; font-style: italic;">No fee structure added yet.</p>' }} />
+          </div>
+        );
+
+      case 'page-break':
+        return (
+          <div style={{
+            pageBreakBefore: 'always',
+            height: '1px',
+            visibility: 'hidden'
+          }}>
+            {/* Page Break */}
           </div>
         );
 
@@ -463,7 +527,7 @@ const ProposalPreview = (props) => {
               <p style={{ margin: '10px 0 0 0', opacity: '0.9' }}>Navigate through our comprehensive proposal</p>
             </div>
             <div style={{ padding: '0 20px' }}>
-              {sortedSections.map((section, index) => (
+              {sortedSections.filter(section => section.type !== 'page-break').map((section, index) => (
                 <TOCItem key={section.id} primaryColor={primaryColor} style={{
                   padding: '15px 20px',
                   marginBottom: '8px',
@@ -492,22 +556,33 @@ const ProposalPreview = (props) => {
 
         {/* Page 3+: Proposal Sections */}
         <Page>
-          {sortedSections.map(section => (
-            <SectionContainer key={section.id}>
-              <SectionTitle
-                primaryColor={primaryColor}
-                fontFamily={fontFamily}
-              >
-                {section.title}
-              </SectionTitle>
-              <SectionContent
-                primaryColor={primaryColor}
-                fontFamily={fontFamily}
-              >
-                {renderSectionContent(section)}
-              </SectionContent>
-            </SectionContainer>
-          ))}
+          {sortedSections.map(section => {
+            // Handle page break sections differently - no container or title
+            if (section.type === 'page-break') {
+              return (
+                <div key={section.id}>
+                  {renderSectionContent(section)}
+                </div>
+              );
+            }
+            
+            return (
+              <SectionContainer key={section.id}>
+                <SectionTitle
+                  primaryColor={primaryColor}
+                  fontFamily={fontFamily}
+                >
+                  {section.title}
+                </SectionTitle>
+                <SectionContent
+                  primaryColor={primaryColor}
+                  fontFamily={fontFamily}
+                >
+                  {renderSectionContent(section)}
+                </SectionContent>
+              </SectionContainer>
+            );
+          })}
 
           {/* Footer */}
           {branding?.footerText && (

@@ -330,21 +330,21 @@ const CaseStudyManager = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     const caseStudyData = {
       ...formData,
       tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
     };
-    
+
     if (editingCaseStudy) {
-      dispatch(updateCaseStudy({ 
-        id: editingCaseStudy.id, 
+      dispatch(updateCaseStudy({
+        id: editingCaseStudy.id,
         updates: { ...caseStudyData, updatedAt: new Date().toISOString() }
       }));
     } else {
       dispatch(addCaseStudy(caseStudyData));
     }
-    
+
     setShowModal(false);
   };
 
@@ -379,29 +379,32 @@ const CaseStudyManager = () => {
               <CaseStudyTitle>{caseStudy.title}</CaseStudyTitle>
               <CaseStudyClient>Client: {caseStudy.client}</CaseStudyClient>
               <CaseStudyDescription>{caseStudy.description}</CaseStudyDescription>
-              
+
               <MetaInfo>
                 <MetaItem><strong>Duration:</strong> {caseStudy.duration}</MetaItem>
                 <MetaItem><strong>Budget:</strong> {caseStudy.budget}</MetaItem>
               </MetaInfo>
-              
-              {caseStudy.tags && caseStudy.tags.length > 0 && (
+
+              {caseStudy?.tags && (Array.isArray(caseStudy.tags) ? caseStudy.tags.length > 0 : caseStudy.tags.trim().length > 0) && (
                 <TagsContainer>
                   <Tags>
-                    {caseStudy.tags.map((tag, index) => (
+                    {(Array.isArray(caseStudy.tags) 
+                      ? caseStudy.tags 
+                      : caseStudy.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+                    ).map((tag, index) => (
                       <Tag key={index}>{tag}</Tag>
                     ))}
                   </Tags>
                 </TagsContainer>
               )}
-              
+
               <CaseStudyActions>
                 <ActionButton onClick={() => handleEditCaseStudy(caseStudy)}>
                   <FiEdit3 size={12} />
                   Edit
                 </ActionButton>
-                <ActionButton 
-                  danger 
+                <ActionButton
+                  danger
                   onClick={() => handleDeleteCaseStudy(caseStudy.id)}
                 >
                   <FiTrash2 size={12} />

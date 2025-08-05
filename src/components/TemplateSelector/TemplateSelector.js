@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiX, FiCheck, FiPlus, FiFileText } from 'react-icons/fi';
-import { useSelector } from 'react-redux';
+import { FiX, FiCheck, FiPlus, FiFileText, FiUser, FiBriefcase } from 'react-icons/fi';
+import { useSelector, useDispatch } from 'react-redux';
+import { addClient } from '../../store/slices/clientsSlice';
 import CoverSelector from '../CoverSelector/CoverSelector';
 
 const ModalOverlay = styled.div`
@@ -207,6 +208,146 @@ const DefaultTemplateText = styled.div`
   margin-top: 8px;
 `;
 
+const ClientSelectionSection = styled.div`
+  margin-bottom: 24px;
+`;
+
+const ClientGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+`;
+
+const ClientCard = styled.div`
+  background: white;
+  border: 2px solid ${props => props.selected ? '#007bff' : '#e0e0e0'};
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    border-color: ${props => props.selected ? '#007bff' : '#007bff'};
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  }
+`;
+
+const ClientName = styled.h4`
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+`;
+
+const ClientCompany = styled.div`
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+`;
+
+const ClientEmail = styled.div`
+  font-size: 12px;
+  color: #888;
+`;
+
+const NewClientButton = styled.button`
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  margin-bottom: 16px;
+
+  &:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+    color: #007bff;
+  }
+`;
+
+const ClientFormModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+`;
+
+const ClientFormContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 16px;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 6px;
+  font-size: 14px;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #007bff;
+  }
+`;
+
+const FormActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+`;
+
 const CoverSelectionSection = styled.div`
   margin-bottom: 24px;
 `;
@@ -310,11 +451,23 @@ const Button = styled.button`
 `;
 
 const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
+  const dispatch = useDispatch();
   const { brandingTemplates } = useSelector(state => state.branding);
+  const { clients } = useSelector(state => state.clients);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
   const [selectedCover, setSelectedCover] = useState(null);
   const [showCoverSelector, setShowCoverSelector] = useState(false);
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [clientFormData, setClientFormData] = useState({
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    address: '',
+    notes: ''
+  });
 
   if (!isOpen) return null;
 
@@ -324,19 +477,27 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
 
   const handleNextStep = () => {
     if (currentStep === 1 && selectedTemplate) {
-      // Skip cover selection for template change mode
+      // Skip client and cover selection for template change mode
       if (mode === 'change') {
         handleConfirm();
       } else {
         setCurrentStep(2);
       }
+    } else if (currentStep === 2 && selectedClient) {
+      setCurrentStep(3);
     }
   };
 
   const handlePrevStep = () => {
-    if (currentStep === 2) {
+    if (currentStep === 3) {
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
       setCurrentStep(1);
     }
+  };
+
+  const handleClientSelect = (client) => {
+    setSelectedClient(client);
   };
 
   const handleCoverSelect = (cover) => {
@@ -344,9 +505,32 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
     setShowCoverSelector(false);
   };
 
+  const handleNewClientSubmit = (e) => {
+    e.preventDefault();
+    const newClient = dispatch(addClient(clientFormData));
+    setSelectedClient(newClient.payload);
+    setShowClientForm(false);
+    setClientFormData({
+      name: '',
+      company: '',
+      email: '',
+      phone: '',
+      address: '',
+      notes: ''
+    });
+  };
+
+  const handleClientFormChange = (e) => {
+    setClientFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
   const handleConfirm = () => {
     onSelect({
       template: selectedTemplate,
+      client: selectedClient,
       cover: selectedCover
     });
     onClose();
@@ -355,8 +539,18 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
   const handleClose = () => {
     setCurrentStep(1);
     setSelectedTemplate(null);
+    setSelectedClient(null);
     setSelectedCover(null);
     setShowCoverSelector(false);
+    setShowClientForm(false);
+    setClientFormData({
+      name: '',
+      company: '',
+      email: '',
+      phone: '',
+      address: '',
+      notes: ''
+    });
     onClose();
   };
 
@@ -400,9 +594,16 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                 Branding Template
               </Step>
               <StepDivider completed={currentStep > 1} />
-              <Step active={currentStep === 2}>
-                <StepNumber active={currentStep === 2}>
-                  2
+              <Step active={currentStep === 2} completed={currentStep > 2}>
+                <StepNumber active={currentStep === 2} completed={currentStep > 2}>
+                  {currentStep > 2 ? <FiCheck size={12} /> : '2'}
+                </StepNumber>
+                Select Client
+              </Step>
+              <StepDivider completed={currentStep > 2} />
+              <Step active={currentStep === 3}>
+                <StepNumber active={currentStep === 3}>
+                  3
                 </StepNumber>
                 Cover Template (Optional)
               </Step>
@@ -486,6 +687,57 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
           {currentStep === 2 && (
             <>
               <SectionTitle>
+                <FiUser size={18} />
+                Select Client for Proposal
+              </SectionTitle>
+              
+              <ClientSelectionSection>
+                <NewClientButton onClick={() => setShowClientForm(true)}>
+                  <FiPlus size={24} />
+                  <div>Create New Client</div>
+                  <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                    Add a new client to your database
+                  </div>
+                </NewClientButton>
+
+                {clients.length > 0 ? (
+                  <ClientGrid>
+                    {clients.map(client => (
+                      <ClientCard
+                        key={client.id}
+                        selected={selectedClient?.id === client.id}
+                        onClick={() => handleClientSelect(client)}
+                      >
+                        {selectedClient?.id === client.id && (
+                          <SelectedBadge>
+                            <FiCheck size={12} />
+                          </SelectedBadge>
+                        )}
+                        <ClientName>{client.name}</ClientName>
+                        <ClientCompany>{client.company}</ClientCompany>
+                        <ClientEmail>{client.email}</ClientEmail>
+                      </ClientCard>
+                    ))}
+                  </ClientGrid>
+                ) : (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: '#666', 
+                    padding: '20px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    marginBottom: '24px'
+                  }}>
+                    <p>No clients found. Create your first client to continue.</p>
+                  </div>
+                )}
+              </ClientSelectionSection>
+            </>
+          )}
+
+          {currentStep === 3 && (
+            <>
+              <SectionTitle>
                 <FiFileText size={18} />
                 Choose a Cover Template (Optional)
               </SectionTitle>
@@ -519,7 +771,7 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
 
           <ButtonContainer>
             <div>
-              {currentStep === 2 && (
+              {(currentStep === 2 || currentStep === 3) && (
                 <Button onClick={handlePrevStep}>
                   Back
                 </Button>
@@ -535,13 +787,21 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                   onClick={handleNextStep}
                   disabled={!selectedTemplate}
                 >
-                  {mode === 'change' ? 'Change Template' : 'Next: Cover Template'}
+                  {mode === 'change' ? 'Change Template' : 'Next: Select Client'}
+                </Button>
+              ) : currentStep === 2 ? (
+                <Button 
+                  primary 
+                  onClick={handleNextStep}
+                  disabled={!selectedClient}
+                >
+                  Next: Cover Template
                 </Button>
               ) : (
                 <Button 
                   primary 
                   onClick={handleConfirm}
-                  disabled={!selectedTemplate}
+                  disabled={!selectedTemplate || !selectedClient}
                 >
                   Create Proposal
                 </Button>
@@ -557,6 +817,89 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
         onSelect={handleCoverSelect}
         selectedCover={selectedCover}
       />
+
+      {showClientForm && (
+        <ClientFormModal onClick={() => setShowClientForm(false)}>
+          <ClientFormContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Add New Client</ModalTitle>
+              <CloseButton onClick={() => setShowClientForm(false)}>
+                <FiX size={20} />
+              </CloseButton>
+            </ModalHeader>
+
+            <form onSubmit={handleNewClientSubmit}>
+              <FormGroup>
+                <Label>Client Name *</Label>
+                <Input
+                  type="text"
+                  name="name"
+                  value={clientFormData.name}
+                  onChange={handleClientFormChange}
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Company</Label>
+                <Input
+                  type="text"
+                  name="company"
+                  value={clientFormData.company}
+                  onChange={handleClientFormChange}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  name="email"
+                  value={clientFormData.email}
+                  onChange={handleClientFormChange}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Phone</Label>
+                <Input
+                  type="tel"
+                  name="phone"
+                  value={clientFormData.phone}
+                  onChange={handleClientFormChange}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Address</Label>
+                <TextArea
+                  name="address"
+                  value={clientFormData.address}
+                  onChange={handleClientFormChange}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Notes</Label>
+                <TextArea
+                  name="notes"
+                  value={clientFormData.notes}
+                  onChange={handleClientFormChange}
+                />
+              </FormGroup>
+
+              <FormActions>
+                <Button type="button" onClick={() => setShowClientForm(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" primary disabled={!clientFormData.name}>
+                  Add Client
+                </Button>
+              </FormActions>
+            </form>
+          </ClientFormContent>
+        </ClientFormModal>
+      )}
     </>
   );
 };

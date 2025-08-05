@@ -186,19 +186,44 @@ const ProposalBuilder = () => {
   }
 
   const handleDragEnd = (result) => {
-    if (!result.destination) return;
+    // Validate drag result
+    if (!result.destination || !result.source) {
+      return;
+    }
 
-    const sections = Array.from(currentProposal.sections);
-    const [reorderedSection] = sections.splice(result.source.index, 1);
-    sections.splice(result.destination.index, 0, reorderedSection);
+    // Check if position actually changed
+    if (result.destination.index === result.source.index) {
+      return;
+    }
 
-    // Update order property
-    const updatedSections = sections.map((section, index) => ({
-      ...section,
-      order: index
-    }));
+    // Validate that we have sections to work with
+    if (!currentProposal?.sections || !Array.isArray(currentProposal.sections)) {
+      console.error('Invalid sections data for drag and drop');
+      return;
+    }
 
-    dispatch(updateProposal({ id: currentProposal.id, updates: { sections: updatedSections } }));
+    try {
+      const sections = Array.from(currentProposal.sections);
+      
+      // Validate indices
+      if (result.source.index >= sections.length || result.source.index < 0) {
+        console.error('Invalid source index for drag and drop');
+        return;
+      }
+
+      const [reorderedSection] = sections.splice(result.source.index, 1);
+      sections.splice(result.destination.index, 0, reorderedSection);
+
+      // Update order property
+      const updatedSections = sections.map((section, index) => ({
+        ...section,
+        order: index
+      }));
+
+      dispatch(updateProposal({ id: currentProposal.id, updates: { sections: updatedSections } }));
+    } catch (error) {
+      console.error('Error during drag and drop:', error);
+    }
   };
 
   const handleProposalNameChange = (e) => {
@@ -243,7 +268,9 @@ const ProposalBuilder = () => {
     }
   };
 
-  const sortedSections = [...currentProposal.sections].sort((a, b) => a.order - b.order);
+  const sortedSections = [...currentProposal.sections]
+    .filter(section => section && section.id) // Ensure sections have valid IDs
+    .sort((a, b) => a.order - b.order);
 
   // const proposalPreview = ReactDOMServer.renderToStaticMarkup(<ProposalPreview />);
 

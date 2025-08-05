@@ -96,14 +96,14 @@ const parseHtmlContent = (htmlContent, primaryColor) => {
   );
 };
 
-// Helper function to create team member content
-const createTeamMemberContent = (teamMembers, primaryColor) => {
-  if (!teamMembers || teamMembers.length === 0) {
+// Helper function to create team member content (for team section - no CVs)
+const createTeamMemberContent = (selectedTeamMembers, allTeamMembers, primaryColor) => {
+  if (!selectedTeamMembers || selectedTeamMembers.length === 0) {
     return [
       new Paragraph({
         children: [
           new TextRun({
-            text: "No team members added yet. Add team members in the Content Manager.",
+            text: "No team members selected for this section.",
             italics: true,
             color: "666666",
             size: 24
@@ -114,7 +114,10 @@ const createTeamMemberContent = (teamMembers, primaryColor) => {
   }
 
   const content = [];
-  teamMembers.forEach((member, index) => {
+  selectedTeamMembers.forEach((memberId, index) => {
+    const member = allTeamMembers.find(tm => tm.id === memberId);
+    if (!member) return;
+
     if (index > 0) {
       content.push(new Paragraph({ children: [new TextRun({ text: "" })] })); // Spacing
     }
@@ -133,7 +136,7 @@ const createTeamMemberContent = (teamMembers, primaryColor) => {
       new Paragraph({
         children: [
           new TextRun({
-            text: member.position,
+            text: member.position || 'Team Member',
             size: 24,
             color: "666666"
           })
@@ -165,6 +168,97 @@ const createTeamMemberContent = (teamMembers, primaryColor) => {
             })
           ],
           spacing: { after: 200 }
+        })
+      );
+    }
+  });
+
+  return content;
+};
+
+// Helper function to create CV content (for CVs section)
+const createCVContent = (selectedTeamMembers, allTeamMembers, primaryColor) => {
+  if (!selectedTeamMembers || selectedTeamMembers.length === 0) {
+    return [
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No team members selected for CVs section.",
+            italics: true,
+            color: "666666",
+            size: 24
+          })
+        ]
+      })
+    ];
+  }
+
+  const content = [];
+  selectedTeamMembers.forEach((memberId, index) => {
+    const member = allTeamMembers.find(tm => tm.id === memberId);
+    if (!member) return;
+
+    if (index > 0) {
+      content.push(new Paragraph({ children: [new TextRun({ text: "" })] })); // Spacing
+    }
+    
+    content.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `${member.name} - CV`,
+            bold: true,
+            size: 28,
+            color: primaryColor.replace('#', '')
+          })
+        ]
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: member.position || 'Team Member',
+            size: 24,
+            color: "666666"
+          })
+        ]
+      })
+    );
+
+    if (member.cv) {
+      content.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Curriculum Vitae:",
+              bold: true,
+              size: 24,
+              color: primaryColor.replace('#', '')
+            })
+          ],
+          spacing: { before: 200 }
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: member.cv,
+              size: 22
+            })
+          ],
+          spacing: { after: 400 }
+        })
+      );
+    } else {
+      content.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "CV content not available",
+              italics: true,
+              size: 22,
+              color: "666666"
+            })
+          ],
+          spacing: { after: 400 }
         })
       );
     }
@@ -518,7 +612,13 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
     // Proposal Sections
     sortedSections.forEach((section, sectionIndex) => {
-      // Section Title
+      // Handle page break sections differently - no title, just page break
+      if (section.type === 'page-break') {
+        contentChildren.push(new PageBreak());
+        return; // Skip to next section
+      }
+
+      // Section Title (for all non-page-break sections)
       contentChildren.push(
         new Paragraph({
           children: [
@@ -539,11 +639,18 @@ export const exportToDocx = async (proposal, branding = {}) => {
       let sectionContent = [];
       
       switch (section.type) {
+
         case 'team':
+          sectionContent = [
+            ...parseHtmlContent(section.content, primaryColor),
+            ...createTeamMemberContent(section.selectedTeamMembers || [], teamMembers, primaryColor)
+          ];
+          break;
+
         case 'cvs':
           sectionContent = [
             ...parseHtmlContent(section.content, primaryColor),
-            ...createTeamMemberContent(teamMembers, primaryColor)
+            ...createCVContent(section.selectedTeamMembers || [], teamMembers, primaryColor)
           ];
           break;
 
@@ -585,8 +692,8 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       contentChildren.push(...sectionContent);
 
-      // Add page break between sections (except for the last one)
-      if (sectionIndex < sortedSections.length - 1) {
+      // Add page break between sections (except for the last one and page-break sections)
+      if (sectionIndex < sortedSections.length - 1 && section.type !== 'page-break') {
         contentChildren.push(new PageBreak());
       }
     });

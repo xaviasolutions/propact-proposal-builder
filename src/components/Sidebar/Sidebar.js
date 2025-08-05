@@ -263,7 +263,7 @@ const Sidebar = () => {
   };
 
   const handleTemplateSelect = (selection) => {
-    const { template: selectedTemplate, cover: selectedCover } = selection;
+    const { template: selectedTemplate, cover: selectedCover, client: selectedClient } = selection;
 
     if (changingTemplateFor) {
       // Update existing proposal with new template
@@ -300,6 +300,10 @@ const Sidebar = () => {
         updates.coverTemplate = selectedCover;
       }
 
+      if (selectedClient) {
+        updates.clientId = selectedClient.id;
+      }
+
       dispatch(updateProposal({ id: changingTemplateFor.id, updates }));
       
       // Update current proposal if it's the one being changed
@@ -318,6 +322,7 @@ const Sidebar = () => {
       const newProposal = {
         id: uuidv4(),
         name: `Proposal ${proposals.length + 1}`,
+        clientId: selectedClient?.id || null,
         sections: [
           {
             id: uuidv4(),
