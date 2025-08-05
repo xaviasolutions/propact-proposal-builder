@@ -290,7 +290,7 @@ const ProposalBuilder = () => {
               <FiPlus size={14} />
               Add Section
             </AddSectionButton>
-            <AddSectionButton
+            {/* <AddSectionButton
               onClick={() => setViewMode(viewMode === 'editor' ? 'preview' : 'editor')}
               style={{
                 background: viewMode === 'preview' ? '#007bff' : 'white',
@@ -299,7 +299,7 @@ const ProposalBuilder = () => {
             >
               <FiEye size={14} />
               {viewMode === 'editor' ? 'Preview' : 'Edit'}
-            </AddSectionButton>
+            </AddSectionButton> */}
           </div>
         </ProposalHeader>
 
