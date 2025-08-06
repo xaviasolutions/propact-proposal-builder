@@ -73,7 +73,11 @@ const initialState = {
       secondary: 'Georgia, serif'
     },
     logo: null,
-    watermark: null,
+    watermark: {
+      image: null,
+      transparency: 0.3,
+      processedImage: null // This will store the transparent version
+    },
     companyName: 'Your Company Name',
     headerText: '',
     footerText: ''

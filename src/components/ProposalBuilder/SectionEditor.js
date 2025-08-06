@@ -214,6 +214,99 @@ const TableButton = styled.button`
   }
 `;
 
+const TableBuilder = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 16px 0;
+`;
+
+const TableBuilderHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+`;
+
+const TableBuilderTitle = styled.h4`
+  margin: 0;
+  color: #495057;
+  font-size: 16px;
+`;
+
+const TableControls = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+const ControlButton = styled.button`
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover {
+    background: #5a6268;
+  }
+`;
+
+const EditableTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+`;
+
+const EditableCell = styled.td`
+  border: 1px solid #dee2e6;
+  padding: 8px;
+  position: relative;
+
+  input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    font-size: 14px;
+    
+    &:focus {
+      outline: 2px solid #007bff;
+      outline-offset: -2px;
+      background: #fff;
+    }
+  }
+`;
+
+const EditableHeaderCell = styled.th`
+  border: 1px solid #dee2e6;
+  padding: 8px;
+  background: #e9ecef;
+  font-weight: 600;
+
+  input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    
+    &:focus {
+      outline: 2px solid #007bff;
+      outline-offset: -2px;
+      background: #fff;
+    }
+  }
+`;
+
 const ClientInfoContainer = styled.div`
   background: #e8f4fd;
   border: 1px solid #b3d9ff;
@@ -258,6 +351,12 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [selectedCaseStudies, setSelectedCaseStudies] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showTableBuilder, setShowTableBuilder] = useState(false);
+  const [tableData, setTableData] = useState([
+    ['Header 1', 'Header 2', 'Header 3'],
+    ['Cell 1,1', 'Cell 1,2', 'Cell 1,3'],
+    ['Cell 2,1', 'Cell 2,2', 'Cell 2,3']
+  ]);
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
@@ -327,6 +426,86 @@ const SectionEditor = ({ section, onUpdate }) => {
     tableHTML += '</tbody></table>';
     
     setContent(content + tableHTML);
+    setHasChanges(true);
+  };
+
+  const createNewTable = (rows = 3, cols = 3) => {
+    const newTableData = [];
+    // Create header row
+    const headerRow = [];
+    for (let j = 0; j < cols; j++) {
+      headerRow.push(`Header ${j + 1}`);
+    }
+    newTableData.push(headerRow);
+    
+    // Create data rows
+    for (let i = 1; i < rows; i++) {
+      const row = [];
+      for (let j = 0; j < cols; j++) {
+        row.push(`Cell ${i},${j + 1}`);
+      }
+      newTableData.push(row);
+    }
+    
+    setTableData(newTableData);
+    setShowTableBuilder(true);
+  };
+
+  const updateTableCell = (rowIndex, colIndex, value) => {
+    const newTableData = [...tableData];
+    newTableData[rowIndex][colIndex] = value;
+    setTableData(newTableData);
+  };
+
+  const addTableRow = () => {
+    const newRow = new Array(tableData[0].length).fill('New Cell');
+    setTableData([...tableData, newRow]);
+  };
+
+  const removeTableRow = () => {
+    if (tableData.length > 2) { // Keep at least header + 1 row
+      setTableData(tableData.slice(0, -1));
+    }
+  };
+
+  const addTableColumn = () => {
+    const newTableData = tableData.map((row, index) => [
+      ...row,
+      index === 0 ? 'New Header' : 'New Cell'
+    ]);
+    setTableData(newTableData);
+  };
+
+  const removeTableColumn = () => {
+    if (tableData[0].length > 2) { // Keep at least 2 columns
+      const newTableData = tableData.map(row => row.slice(0, -1));
+      setTableData(newTableData);
+    }
+  };
+
+  const insertTableIntoContent = () => {
+    let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">';
+    
+    // Header row
+    tableHTML += '<thead><tr>';
+    tableData[0].forEach(cell => {
+      tableHTML += `<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; font-weight: 600;">${cell}</th>`;
+    });
+    tableHTML += '</tr></thead>';
+    
+    // Data rows
+    tableHTML += '<tbody>';
+    for (let i = 1; i < tableData.length; i++) {
+      tableHTML += '<tr>';
+      tableData[i].forEach(cell => {
+        tableHTML += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
+      });
+      tableHTML += '</tr>';
+    }
+    tableHTML += '</tbody></table>';
+    
+    setContent(content + tableHTML);
+    setShowTableBuilder(false);
     setHasChanges(true);
   };
 
@@ -472,7 +651,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'cvs', label: 'Team CVs' },
     { value: 'case-study', label: 'Case Study' },
     { value: 'services', label: 'Services' },
-    { value: 'testimonials', label: 'Testimonials' },
+    // { value: 'testimonials', label: 'Testimonials' },
     // { value: 'page-break', label: 'Page Break' },
     { value: 'custom', label: 'Custom Section' }
   ];
@@ -487,13 +666,17 @@ const SectionEditor = ({ section, onUpdate }) => {
       ['link', 'image'],
       [{ 'color': [] }, { 'background': [] }],
       ['clean']
-    ]
+    ],
+    clipboard: {
+      matchVisual: false
+    }
   };
 
   const quillFormats = [
     'header', 'bold', 'italic', 'underline', 'strike',
     'list', 'bullet', 'indent', 'align',
-    'link', 'image', 'color', 'background'
+    'link', 'image', 'color', 'background',
+    'table', 'table-cell-line', 'table-cell', 'table-col', 'table-row'
   ];
 
   const currentClient = getCurrentClient();
@@ -731,16 +914,73 @@ const SectionEditor = ({ section, onUpdate }) => {
             Table Tools
           </SelectorTitle>
           <TableToolbar>
-            <TableButton onClick={() => insertTable(3, 3)}>
-              Insert 3x3 Table
+            <TableButton onClick={() => createNewTable(3, 3)}>
+              Create 3x3 Table
             </TableButton>
-            <TableButton onClick={() => insertTable(5, 4)}>
-              Insert 5x4 Table
+            <TableButton onClick={() => createNewTable(5, 4)}>
+              Create 5x4 Table
             </TableButton>
-            <TableButton onClick={() => insertTable(2, 6)}>
-              Insert 2x6 Table
+            <TableButton onClick={() => createNewTable(4, 6)}>
+              Create 4x6 Table
             </TableButton>
           </TableToolbar>
+          
+          {showTableBuilder && (
+            <TableBuilder>
+              <TableBuilderHeader>
+                <TableBuilderTitle>Table Builder</TableBuilderTitle>
+                <ControlButton onClick={() => setShowTableBuilder(false)}>
+                  ✕ Close
+                </ControlButton>
+              </TableBuilderHeader>
+              
+              <TableControls>
+                <ControlButton onClick={addTableRow}>+ Add Row</ControlButton>
+                <ControlButton onClick={removeTableRow}>- Remove Row</ControlButton>
+                <ControlButton onClick={addTableColumn}>+ Add Column</ControlButton>
+                <ControlButton onClick={removeTableColumn}>- Remove Column</ControlButton>
+              </TableControls>
+              
+              <EditableTable>
+                <thead>
+                  <tr>
+                    {tableData[0]?.map((cell, colIndex) => (
+                      <EditableHeaderCell key={colIndex}>
+                        <input
+                          type="text"
+                          value={cell}
+                          onChange={(e) => updateTableCell(0, colIndex, e.target.value)}
+                          placeholder="Header"
+                        />
+                      </EditableHeaderCell>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.slice(1).map((row, rowIndex) => (
+                    <tr key={rowIndex + 1}>
+                      {row.map((cell, colIndex) => (
+                        <EditableCell key={colIndex}>
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => updateTableCell(rowIndex + 1, colIndex, e.target.value)}
+                            placeholder="Cell content"
+                          />
+                        </EditableCell>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </EditableTable>
+              
+              <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                <TableButton onClick={insertTableIntoContent}>
+                  Insert Table into Content
+                </TableButton>
+              </div>
+            </TableBuilder>
+          )}
         </SelectorContainer>
       )}
 

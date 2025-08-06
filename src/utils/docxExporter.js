@@ -19,7 +19,9 @@ import {
   convertMillimetersToTwip,
   HorizontalPositionAlign,
   VerticalPositionAlign,
-  TextWrappingType
+  TextWrappingType,
+  LevelFormat,
+  AlignmentType as NumberingAlignment
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -34,20 +36,24 @@ const hexToRgb = (hex) => {
 };
 
 // Helper function to convert base64 to buffer (browser-compatible)
-const base64ToBuffer = async (base64String) => {
+const base64ToBuffer = (base64String) => {
   try {
     // Handle data URL format
-    let dataUrl = base64String;
-    if (!base64String.startsWith('data:')) {
-      // Assume it's PNG if no data URL prefix
-      dataUrl = `data:image/png;base64,${base64String}`;
+    let base64Data = base64String;
+    if (base64String.startsWith('data:')) {
+      // Extract base64 data from data URL
+      base64Data = base64String.split(',')[1];
     }
     
-    // Use fetch to convert data URL to blob, then to array buffer
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
+    // Convert base64 to binary string
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    return bytes;
   } catch (error) {
     console.error('Error converting base64 to buffer:', error);
     return null;
@@ -94,40 +100,329 @@ const getImageExtension = (base64String) => {
   return match ? match[1] : 'png';
 };
 
+// Helper function to decode HTML entities
+const decodeHtmlEntities = (text) => {
+  const entities = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&cent;': '¢',
+    '&pound;': '£',
+    '&yen;': '¥',
+    '&euro;': '€',
+    '&copy;': '©',
+    '&reg;': '®'
+  };
+  
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => {
+    return entities[entity] || entity;
+  });
+};
+
+// Helper function to extract images from HTML content
+const extractImagesFromHtml = (htmlContent) => {
+  const images = [];
+  const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+  let match;
+  
+  while ((match = imgRegex.exec(htmlContent)) !== null) {
+    const src = match[1];
+    if (src.startsWith('data:image/')) {
+      images.push({
+        src: src,
+        width: 400, // Default width
+        height: 300  // Default height
+      });
+    }
+  }
+  
+  return images;
+};
+
+// Helper function to parse inline formatting
+const parseInlineFormatting = (htmlText, primaryColor) => {
+  const runs = [];
+  
+  if (!htmlText || !htmlText.trim()) return runs;
+  
+  // Split text by formatting tags while preserving the tags
+  const parts = htmlText.split(/(<\/?(?:strong|b|em|i|u|strike|s|span)[^>]*>)/gi);
+  
+  let currentFormat = {
+    bold: false,
+    italics: false,
+    underline: false,
+    strike: false,
+    color: null
+  };
+  
+  const formatStack = [];
+  
+  for (let part of parts) {
+    if (!part) continue;
+    
+    // Check if this is a formatting tag
+    if (part.match(/^<(strong|b)(\s[^>]*)?>$/i)) {
+      formatStack.push({ ...currentFormat });
+      currentFormat.bold = true;
+    } else if (part.match(/^<\/(strong|b)>$/i)) {
+      currentFormat = formatStack.pop() || { ...currentFormat, bold: false };
+    } else if (part.match(/^<(em|i)(\s[^>]*)?>$/i)) {
+      formatStack.push({ ...currentFormat });
+      currentFormat.italics = true;
+    } else if (part.match(/^<\/(em|i)>$/i)) {
+      currentFormat = formatStack.pop() || { ...currentFormat, italics: false };
+    } else if (part.match(/^<u(\s[^>]*)?>$/i)) {
+      formatStack.push({ ...currentFormat });
+      currentFormat.underline = true;
+    } else if (part.match(/^<\/u>$/i)) {
+      currentFormat = formatStack.pop() || { ...currentFormat, underline: false };
+    } else if (part.match(/^<(strike|s)(\s[^>]*)?>$/i)) {
+      formatStack.push({ ...currentFormat });
+      currentFormat.strike = true;
+    } else if (part.match(/^<\/(strike|s)>$/i)) {
+      currentFormat = formatStack.pop() || { ...currentFormat, strike: false };
+    } else if (part.match(/^<span[^>]*style="[^"]*color:\s*([^;"]+)[^"]*"[^>]*>$/i)) {
+      formatStack.push({ ...currentFormat });
+      const colorMatch = part.match(/color:\s*([^;"]+)/i);
+      if (colorMatch) {
+        currentFormat.color = colorMatch[1].trim();
+      }
+    } else if (part.match(/^<\/span>$/i)) {
+      currentFormat = formatStack.pop() || { ...currentFormat, color: null };
+    } else if (!part.match(/^<[^>]*>$/)) {
+      // This is actual text content
+      const cleanText = decodeHtmlEntities(part.trim());
+      if (cleanText) {
+        const runOptions = {
+          text: cleanText,
+          size: 24,
+          font: "Arial"
+        };
+        
+        if (currentFormat.bold) runOptions.bold = true;
+        if (currentFormat.italics) runOptions.italics = true;
+        if (currentFormat.underline) runOptions.underline = {};
+        if (currentFormat.strike) runOptions.strike = true;
+        if (currentFormat.color) {
+          // Handle color - remove # if present and validate
+          let color = currentFormat.color.replace('#', '');
+          if (color.length === 6 && /^[0-9A-Fa-f]+$/.test(color)) {
+            runOptions.color = color;
+          }
+        }
+        
+        runs.push(new TextRun(runOptions));
+      }
+    }
+  }
+  
+  // If no runs were created, create a basic one with the cleaned text
+  if (runs.length === 0) {
+    const cleanText = htmlText.replace(/<[^>]*>/g, '').trim();
+    if (cleanText) {
+      runs.push(new TextRun({
+        text: decodeHtmlEntities(cleanText),
+        size: 24,
+        font: "Arial"
+      }));
+    }
+  }
+  
+  return runs;
+};
+
 // Helper function to parse HTML content and convert to docx elements
 const parseHtmlContent = (htmlContent, primaryColor) => {
-  if (!htmlContent) return [];
-  
-  // Remove HTML tags and convert to plain text with basic formatting
-  const textContent = htmlContent
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<p[^>]*>/gi, '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
-
-  if (!textContent) return [];
-
-  const paragraphs = textContent.split('\n').filter(p => p.trim());
-  
-  return paragraphs.map(text => 
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: text.trim(),
-          size: 24, // 12pt
-          font: "Arial"
-        })
-      ],
-      spacing: {
-        after: 200
+  try {
+    if (!htmlContent || typeof htmlContent !== 'string') return [];
+    
+    const elements = [];
+    
+    // Extract and handle images first
+    const images = extractImagesFromHtml(htmlContent);
+    
+    // Remove images from content for text processing
+    let textContent = htmlContent.replace(/<img[^>]*>/gi, '');
+    
+    // Split content by block elements
+    const blockElements = textContent.split(/(<\/?(h[1-6]|p|div|ul|ol|li|table|tr|td|th|blockquote)[^>]*>)/gi);
+    
+    let currentElement = '';
+    let inList = false;
+    let listItems = [];
+    let listType = 'bullet'; // 'bullet' or 'ordered'
+    
+    for (let i = 0; i < blockElements.length; i++) {
+      const block = blockElements[i];
+      
+      if (!block || !block.trim()) continue;
+      
+      // Handle headers
+      if (block.match(/<h([1-6])[^>]*>/i)) {
+        const level = parseInt(block.match(/<h([1-6])[^>]*>/i)[1]);
+        const headerText = blockElements[i + 1] || '';
+        
+        if (headerText.trim()) {
+          const runs = parseInlineFormatting(headerText, primaryColor);
+          if (runs.length > 0) {
+            elements.push(new Paragraph({
+              children: runs.map(run => new TextRun({
+                ...run.options,
+                bold: true,
+                size: level === 1 ? 32 : level === 2 ? 28 : 26,
+                color: primaryColor.replace('#', '')
+              })),
+              spacing: { before: 300, after: 200 }
+            }));
+          }
+        }
+        i++; // Skip the text content as we've processed it
+        continue;
       }
-    })
-  );
+      
+      // Handle list start
+      if (block.match(/<(ul|ol)[^>]*>/i)) {
+        inList = true;
+        listType = block.match(/<ul[^>]*>/i) ? 'bullet' : 'ordered';
+        listItems = [];
+        continue;
+      }
+      
+      // Handle list end
+       if (block.match(/<\/(ul|ol)>/i)) {
+         inList = false;
+         // Add list items to elements
+         listItems.forEach((item, index) => {
+           if (listType === 'bullet') {
+             elements.push(new Paragraph({
+               children: item,
+               bullet: { level: 0 },
+               spacing: { after: 100 }
+             }));
+           } else {
+             // For ordered lists, add numbers manually
+             const numberedRuns = [
+               new TextRun({
+                 text: `${index + 1}. `,
+                 bold: true,
+                 size: 24,
+                 font: "Arial"
+               }),
+               ...item
+             ];
+             elements.push(new Paragraph({
+               children: numberedRuns,
+               spacing: { after: 100 }
+             }));
+           }
+         });
+         listItems = [];
+         continue;
+       }
+      
+      // Handle list items
+      if (block.match(/<li[^>]*>/i)) {
+        const itemText = blockElements[i + 1] || '';
+        if (itemText.trim()) {
+          const runs = parseInlineFormatting(itemText, primaryColor);
+          if (runs.length > 0) {
+            listItems.push(runs);
+          }
+        }
+        i++; // Skip the text content
+        continue;
+      }
+      
+      // Handle paragraphs and other text
+      if (!block.match(/<[^>]*>/)) {
+        const cleanText = block.trim();
+        if (cleanText && !inList) {
+          const runs = parseInlineFormatting(cleanText, primaryColor);
+          if (runs.length > 0) {
+            elements.push(new Paragraph({
+              children: runs,
+              spacing: { after: 200 }
+            }));
+          }
+        }
+      }
+    }
+    
+    // Add images at the end
+    images.forEach(image => {
+      try {
+        const imageBuffer = base64ToBuffer(image.src);
+        const extension = getImageExtension(image.src);
+        
+        elements.push(new Paragraph({
+          children: [
+            new ImageRun({
+              data: imageBuffer,
+              transformation: {
+                width: Math.min(image.width, 400),
+                height: Math.min(image.height, 300)
+              },
+              type: extension === 'png' ? 'png' : 'jpg'
+            })
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 200 }
+        }));
+      } catch (error) {
+        console.warn('Error processing image:', error);
+        elements.push(new Paragraph({
+          children: [
+            new TextRun({
+              text: "[Image could not be processed]",
+              italics: true,
+              color: "666666",
+              size: 22
+            })
+          ],
+          spacing: { after: 200 }
+        }));
+      }
+    });
+    
+    // If no elements were created, return a default paragraph
+    if (elements.length === 0) {
+      const plainText = htmlContent.replace(/<[^>]*>/g, '').trim();
+      if (plainText) {
+        elements.push(new Paragraph({
+          children: [
+            new TextRun({
+              text: decodeHtmlEntities(plainText),
+              size: 24,
+              font: "Arial"
+            })
+          ],
+          spacing: { after: 200 }
+        }));
+      }
+    }
+    
+    return elements;
+    
+  } catch (error) {
+    console.warn('Error parsing HTML content:', error);
+    return [
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Content could not be processed.",
+            italics: true,
+            color: "666666",
+            size: 24
+          })
+        ]
+      })
+    ];
+  }
 };
 
 // Helper function to create team member content (for team section - no CVs)
@@ -463,6 +758,11 @@ const createCaseStudiesContent = (caseStudies, primaryColor) => {
 
 export const exportToDocx = async (proposal, branding = {}) => {
   try {
+    // Validate input
+    if (!proposal || !proposal.name) {
+      throw new Error('Invalid proposal data');
+    }
+
     // Get dynamic data from Redux store
     const state = window.__REDUX_STORE__?.getState();
     const services = state?.services?.services || [];
@@ -473,18 +773,24 @@ export const exportToDocx = async (proposal, branding = {}) => {
     // Merge branding data (proposal branding takes precedence)
     const finalBranding = { ...currentBranding, ...branding };
 
-    // Extract branding colors
-    const primaryColor = finalBranding?.colors?.primary || '#007bff';
-    const secondaryColor = finalBranding?.colors?.secondary || '#6c757d';
-    const accentColor = finalBranding?.colors?.accent || '#28a745';
+    // Extract branding colors with validation
+    const primaryColor = (finalBranding?.colors?.primary && finalBranding.colors.primary.match(/^#[0-9A-F]{6}$/i)) 
+      ? finalBranding.colors.primary : '#007bff';
+    const secondaryColor = (finalBranding?.colors?.secondary && finalBranding.colors.secondary.match(/^#[0-9A-F]{6}$/i)) 
+      ? finalBranding.colors.secondary : '#6c757d';
+    const accentColor = (finalBranding?.colors?.accent && finalBranding.colors.accent.match(/^#[0-9A-F]{6}$/i)) 
+      ? finalBranding.colors.accent : '#28a745';
     const fontFamily = finalBranding?.fonts?.primary || 'Arial';
 
     // Convert colors for docx
     const primaryRgb = hexToRgb(primaryColor);
     const secondaryRgb = hexToRgb(secondaryColor);
 
-    // Sort sections by order
-    const sortedSections = [...proposal.sections].sort((a, b) => a.order - b.order);
+    // Validate and sort sections by order
+    const proposalSections = proposal.sections || [];
+    const sortedSections = proposalSections
+      .filter(section => section && typeof section === 'object' && section.title)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
 
     // Create document sections
     const children = [];
@@ -498,8 +804,17 @@ export const exportToDocx = async (proposal, branding = {}) => {
         const logoBuffer = await base64ToBuffer(finalBranding.logo);
         
         if (logoBuffer) {
-          // Get original image dimensions
-          const imageDimensions = await getImageDimensions(finalBranding.logo);
+          // Get original image dimensions with timeout and fallback
+          let imageDimensions;
+          try {
+            imageDimensions = await Promise.race([
+              getImageDimensions(finalBranding.logo),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+          } catch (error) {
+            console.warn('Could not get image dimensions, using fallback:', error);
+            imageDimensions = { width: 150, height: 150 };
+          }
           
           // Define container size (like a 150x150 box)
           const containerWidth = 150;
@@ -513,11 +828,15 @@ export const exportToDocx = async (proposal, branding = {}) => {
             containerHeight
           );
           
+          // Ensure dimensions are valid numbers
+          const finalWidth = Math.max(50, Math.min(300, containedDimensions.width));
+          const finalHeight = Math.max(50, Math.min(300, containedDimensions.height));
+          
           const logoImageRun = new ImageRun({
             data: logoBuffer,
             transformation: {
-              width: containedDimensions.width,
-              height: containedDimensions.height,
+              width: finalWidth,
+              height: finalHeight,
             },
           });
           
@@ -531,6 +850,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
         }
       } catch (error) {
         console.warn('Could not process logo image:', error);
+        // Continue without logo instead of failing
       }
     }
 
@@ -867,19 +1187,64 @@ export const exportToDocx = async (proposal, branding = {}) => {
       }
     ];
 
+    // Validate sections before creating document
+    if (!sections || sections.length === 0) {
+      throw new Error('No valid sections found for document creation');
+    }
+
     const doc = new Document({
       sections: sections
     });
 
-    // Generate and save the document
-    const buffer = await Packer.toBlob(doc);
-    const fileName = `${(proposal.name || 'proposal').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx`;
-    saveAs(buffer, fileName);
+    // Generate and save the document with timeout
+    let buffer;
+    try {
+      buffer = await Promise.race([
+        Packer.toBlob(doc),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Document generation timeout')), 30000)
+        )
+      ]);
+    } catch (packError) {
+      console.error('Document packing failed:', packError);
+      throw new Error(`Failed to generate document: ${packError.message}`);
+    }
+
+    if (!buffer) {
+      throw new Error('Failed to generate document buffer');
+    }
+
+    // Validate filename
+    const safeName = (proposal.name || 'proposal')
+      .replace(/[^a-z0-9\s\-_]/gi, '')
+      .replace(/\s+/g, '_')
+      .toLowerCase();
+    const fileName = `${safeName}.docx`;
+
+    try {
+      saveAs(buffer, fileName);
+    } catch (saveError) {
+      console.error('File save failed:', saveError);
+      throw new Error(`Failed to save document: ${saveError.message}`);
+    }
 
     return true;
   } catch (error) {
     console.error('DOCX export failed:', error);
-    alert(`DOCX export failed: ${error.message}`);
+    
+    // Provide more specific error messages
+    let errorMessage = 'DOCX export failed';
+    if (error.message.includes('timeout')) {
+      errorMessage = 'Export timed out. Please try again with a smaller document.';
+    } else if (error.message.includes('Invalid proposal')) {
+      errorMessage = 'Invalid proposal data. Please check your proposal content.';
+    } else if (error.message.includes('sections')) {
+      errorMessage = 'No valid sections found. Please add content to your proposal.';
+    } else {
+      errorMessage = `Export failed: ${error.message}`;
+    }
+    
+    alert(errorMessage);
     throw error;
   }
 };

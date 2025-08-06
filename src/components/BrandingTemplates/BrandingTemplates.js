@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiSettings, FiUpload, FiSave, FiTrash2, FiCopy, FiEdit3, FiImage, FiType, FiLayout } from 'react-icons/fi';
+import { FiSettings, FiUpload, FiSave, FiTrash2, FiCopy, FiEdit3, FiImage, FiType, FiLayout, FiDroplet } from 'react-icons/fi';
 import { useDropzone } from 'react-dropzone';
 import { ChromePicker } from 'react-color';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,11 +11,21 @@ import {
   setCurrentBranding, 
   updateCurrentBranding 
 } from '../../store/slices/brandingSlice';
+import { processWatermarkImage, saveImageToLocalStorage } from '../../utils/imageProcessor';
 
 const BrandingContainer = styled.div`
   display: flex;
   flex-direction: column;
   height: 100%;
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const Header = styled.div`
@@ -324,6 +334,129 @@ const Button = styled.button`
   }
 `;
 
+const SliderContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const SliderLabel = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+`;
+
+const Slider = styled.input`
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: ${props => {
+    const percentage = ((props.value - props.min) / (props.max - props.min)) * 100;
+    return `linear-gradient(to right, #007bff 0%, #007bff ${percentage}%, #e0e0e0 ${percentage}%, #e0e0e0 100%)`;
+  }};
+  outline: none;
+  -webkit-appearance: none;
+  transition: all 0.1s ease;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+    transition: all 0.15s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+    }
+    
+    &:active {
+      transform: scale(1.05);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    border: 3px solid white;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+    transition: all 0.15s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+    }
+    
+    &:active {
+      transform: scale(1.05);
+    }
+  }
+
+  &:hover {
+    background: linear-gradient(to right, #d0d0d0 0%, #0056b3 100%);
+  }
+`;
+
+const WatermarkPreview = styled.div`
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+`;
+
+const ProcessingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+`;
+
+const RemoveButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(220, 53, 69, 0.9);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(220, 53, 69, 1);
+  }
+`;
+
 const BrandingTemplates = () => {
   const dispatch = useDispatch();
   const { brandingTemplates, currentBranding } = useSelector(state => state.branding);
@@ -331,6 +464,23 @@ const BrandingTemplates = () => {
   const [showColorPicker, setShowColorPicker] = useState({});
   const [templateName, setTemplateName] = useState('');
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [isProcessingWatermark, setIsProcessingWatermark] = useState(false);
+  const [localTransparency, setLocalTransparency] = useState(currentBranding.watermark?.transparency || 0.3);
+  const debounceTimeoutRef = useRef(null);
+
+  // Sync local transparency with Redux state
+  useEffect(() => {
+    setLocalTransparency(currentBranding.watermark?.transparency || 0.3);
+  }, [currentBranding.watermark?.transparency]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const fontOptions = [
     'Arial, sans-serif',
@@ -358,18 +508,47 @@ const BrandingTemplates = () => {
     }
   };
 
-  // const onWatermarkDrop = (acceptedFiles) => {
-  //   const file = acceptedFiles[0];
-  //   if (file) {
-  //     const reader = new FileReader();
-  //     reader.onload = () => {
-  //       dispatch(updateCurrentBranding({
-  //         watermark: reader.result
-  //       }));
-  //     };
-  //     reader.readAsDataURL(file);
-  //   }
-  // };
+  const onWatermarkDrop = useCallback(async (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setIsProcessingWatermark(true);
+      try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const originalImage = reader.result;
+            const transparency = currentBranding.watermark?.transparency || 0.3;
+            
+            // Process the image with current transparency
+            const processedImage = await processWatermarkImage(originalImage, transparency);
+            
+            // Save to local storage
+            const storageKey = `watermark_${Date.now()}`;
+            saveImageToLocalStorage(storageKey, processedImage);
+            
+            // Update Redux state
+            dispatch(updateCurrentBranding({
+              watermark: {
+                image: originalImage,
+                transparency: transparency,
+                processedImage: processedImage,
+                storageKey: storageKey
+              }
+            }));
+          } catch (error) {
+            console.error('Error processing watermark:', error);
+            alert('Error processing watermark image. Please try again.');
+          } finally {
+            setIsProcessingWatermark(false);
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error reading file:', error);
+        setIsProcessingWatermark(false);
+      }
+    }
+  }, [currentBranding.watermark?.transparency, dispatch]);
 
   const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
     onDrop: onLogoDrop,
@@ -379,13 +558,13 @@ const BrandingTemplates = () => {
     multiple: false
   });
 
-  // const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
-  //   onDrop: onWatermarkDrop,
-  //   accept: {
-  //     'image/*': ['.png', '.jpg', '.jpeg', '.svg']
-  //   },
-  //   multiple: false
-  // });
+  const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
+    onDrop: onWatermarkDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+    },
+    multiple: false
+  });
 
   const handleColorChange = (field, color) => {
     dispatch(updateCurrentBranding({
@@ -481,6 +660,62 @@ const BrandingTemplates = () => {
     }));
   };
 
+  const processTransparencyChange = useCallback(async (transparency) => {
+    if (!currentBranding.watermark?.image) return;
+    
+    setIsProcessingWatermark(true);
+    try {
+      const processedImage = await processWatermarkImage(
+        currentBranding.watermark.image, 
+        transparency
+      );
+      
+      // Save to local storage
+      const storageKey = currentBranding.watermark.storageKey || `watermark_${Date.now()}`;
+      saveImageToLocalStorage(storageKey, processedImage);
+      
+      dispatch(updateCurrentBranding({
+        watermark: {
+          ...currentBranding.watermark,
+          transparency: transparency,
+          processedImage: processedImage,
+          storageKey: storageKey
+        }
+      }));
+    } catch (error) {
+      console.error('Error updating transparency:', error);
+      alert('Error updating transparency. Please try again.');
+    } finally {
+      setIsProcessingWatermark(false);
+    }
+  }, [currentBranding.watermark, dispatch]);
+
+  const handleTransparencyChange = useCallback((transparency) => {
+    // Update local state immediately for smooth slider movement
+    setLocalTransparency(transparency);
+    
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    // Debounce the actual processing
+    debounceTimeoutRef.current = setTimeout(() => {
+      processTransparencyChange(transparency);
+    }, 300); // 300ms debounce
+  }, [processTransparencyChange]);
+
+  const handleRemoveWatermark = () => {
+    dispatch(updateCurrentBranding({
+      watermark: {
+        image: null,
+        transparency: 0.3,
+        processedImage: null,
+        storageKey: null
+      }
+    }));
+  };
+
   return (
     <BrandingContainer>
       <Header>
@@ -568,6 +803,11 @@ const BrandingTemplates = () => {
                           <img src={template.logo} alt="Logo" />
                         </LogoPreview>
                       )}
+                      {template.watermark?.processedImage && (
+                        <LogoPreview style={{ opacity: 0.7 }}>
+                          <img src={template.watermark.processedImage} alt="Watermark" />
+                        </LogoPreview>
+                      )}
                       <ColorSwatch color={template.colors?.primary || '#007bff'} />
                       <ColorSwatch color={template.colors?.secondary || '#6c757d'} />
                       <ColorSwatch color={template.colors?.accent || '#28a745'} />
@@ -575,6 +815,11 @@ const BrandingTemplates = () => {
                     
                     <TemplateInfo>
                       Font: {template.fonts?.primary || 'Arial, sans-serif'}
+                      {template.watermark?.image && (
+                        <div style={{ marginTop: '4px' }}>
+                          Watermark: {Math.round((template.watermark.transparency || 0.3) * 100)}% opacity
+                        </div>
+                      )}
                     </TemplateInfo>
                   </TemplateCard>
                 ))}
@@ -618,31 +863,67 @@ const BrandingTemplates = () => {
                   </DropzoneArea>
                 </FormGroup>
 
-                {/* <FormGroup>
+                <FormGroup>
                   <Label>Watermark (Optional)</Label>
-                  <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
-                    <input {...getWatermarkInputProps()} />
-                    {currentBranding.watermark ? (
-                      <div>
-                        <img 
-                          src={currentBranding.watermark} 
-                          alt="Watermark" 
-                          style={{ maxWidth: '100px', maxHeight: '60px', opacity: 0.5 }}
-                        />
-                        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#666' }}>
-                          Click or drag to replace
-                        </p>
-                      </div>
-                    ) : (
+                  {!currentBranding.watermark?.image ? (
+                    <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
+                      <input {...getWatermarkInputProps()} />
                       <div>
                         <FiImage size={24} style={{ color: '#666', marginBottom: '8px' }} />
                         <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
                           Drop watermark here or click to upload
                         </p>
                       </div>
-                    )}
-                  </DropzoneArea>
-                </FormGroup> */}
+                    </DropzoneArea>
+                  ) : (
+                    <div>
+                      <WatermarkPreview>
+                        <img 
+                          src={currentBranding.watermark.processedImage || currentBranding.watermark.image} 
+                          alt="Watermark" 
+                        />
+                        <RemoveButton onClick={handleRemoveWatermark}>
+                          ×
+                        </RemoveButton>
+                      </WatermarkPreview>
+                      
+                      <SliderContainer style={{ marginTop: '12px' }}>
+                        <SliderLabel>
+                          <span>
+                            <FiDroplet size={14} style={{ marginRight: '4px' }} />
+                            Transparency
+                          </span>
+                          <span>{Math.round(localTransparency * 100)}%</span>
+                        </SliderLabel>
+                        <Slider
+                          type="range"
+                          min={0.1}
+                          max={1}
+                          step="0.05"
+                          value={localTransparency}
+                          onChange={(e) => handleTransparencyChange(parseFloat(e.target.value))}
+                          disabled={isProcessingWatermark}
+                        />
+                      </SliderContainer>
+                      
+                      {isProcessingWatermark && (
+                        <ProcessingIndicator>
+                          <FiSettings size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                          Processing watermark...
+                        </ProcessingIndicator>
+                      )}
+                      
+                      <div style={{ marginTop: '8px' }}>
+                        <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
+                          <input {...getWatermarkInputProps()} />
+                          <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                            Click or drag to replace watermark
+                          </p>
+                        </DropzoneArea>
+                      </div>
+                    </div>
+                  )}
+                </FormGroup>
               </FormGrid>
             </EditorSection>
 

@@ -8,7 +8,7 @@ import {
 import { useSelector, useDispatch } from 'react-redux';
 import { addProposal, setCurrentProposal, deleteProposal, updateProposal } from '../../store/slices/proposalsSlice';
 import { v4 as uuidv4 } from 'uuid';
-import { exportToDocx } from '../../utils/docxExporter';
+import { exportToDocx } from '../../utils/docxExporter2';
 // import { exportToPDF } from '../../utils/pdfExporter';
 import TemplateSelector from '../TemplateSelector/TemplateSelector';
 
@@ -291,8 +291,8 @@ const Sidebar = () => {
       // If a cover template is selected, update the cover section content
       if (selectedCover) {
         const coverContent = `${selectedCover.header ? selectedCover.header + '\n\n' : ''}${selectedCover.content}${selectedCover.footer ? '\n\n' + selectedCover.footer : ''}`;
-        const updatedSections = changingTemplateFor.sections.map(section => 
-          section.type === 'cover' 
+        const updatedSections = changingTemplateFor.sections.map(section =>
+          section.type === 'cover'
             ? { ...section, content: coverContent }
             : section
         );
@@ -305,7 +305,7 @@ const Sidebar = () => {
       }
 
       dispatch(updateProposal({ id: changingTemplateFor.id, updates }));
-      
+
       // Update current proposal if it's the one being changed
       if (currentProposal?.id === changingTemplateFor.id) {
         dispatch(setCurrentProposal({ ...changingTemplateFor, ...updates }));
@@ -359,7 +359,7 @@ const Sidebar = () => {
       dispatch(addProposal(newProposal));
       dispatch(setCurrentProposal(newProposal));
     }
-    
+
     setShowTemplateSelector(false);
   };
 
