@@ -214,98 +214,7 @@ const TableButton = styled.button`
   }
 `;
 
-const TableBuilder = styled.div`
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 20px;
-  margin: 16px 0;
-`;
 
-const TableBuilderHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-`;
-
-const TableBuilderTitle = styled.h4`
-  margin: 0;
-  color: #495057;
-  font-size: 16px;
-`;
-
-const TableControls = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-`;
-
-const ControlButton = styled.button`
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-
-  &:hover {
-    background: #5a6268;
-  }
-`;
-
-const EditableTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-  background: white;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-`;
-
-const EditableCell = styled.td`
-  border: 1px solid #dee2e6;
-  padding: 8px;
-  position: relative;
-
-  input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    padding: 4px;
-    font-size: 14px;
-    
-    &:focus {
-      outline: 2px solid #007bff;
-      outline-offset: -2px;
-      background: #fff;
-    }
-  }
-`;
-
-const EditableHeaderCell = styled.th`
-  border: 1px solid #dee2e6;
-  padding: 8px;
-  background: #e9ecef;
-  font-weight: 600;
-
-  input {
-    width: 100%;
-    border: none;
-    background: transparent;
-    padding: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    
-    &:focus {
-      outline: 2px solid #007bff;
-      outline-offset: -2px;
-      background: #fff;
-    }
-  }
-`;
 
 const ClientInfoContainer = styled.div`
   background: #e8f4fd;
@@ -351,12 +260,15 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [selectedCaseStudies, setSelectedCaseStudies] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
-  const [showTableBuilder, setShowTableBuilder] = useState(false);
+
+  // Table-specific state
   const [tableData, setTableData] = useState([
     ['Header 1', 'Header 2', 'Header 3'],
     ['Cell 1,1', 'Cell 1,2', 'Cell 1,3'],
     ['Cell 2,1', 'Cell 2,2', 'Cell 2,3']
   ]);
+  const [tableTitle, setTableTitle] = useState('');
+  const [tableDescription, setTableDescription] = useState('');
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
@@ -385,6 +297,15 @@ const SectionEditor = ({ section, onUpdate }) => {
       setSelectedCoverId(section.selectedCoverId);
     }
     
+    // Load table data for table sections
+    if (section.type === 'table') {
+      if (section.tableData) {
+        setTableData(section.tableData);
+      }
+      setTableTitle(section.tableTitle || '');
+      setTableDescription(section.tableDescription || '');
+    }
+    
     // If this is a cover letter section, try to find the selected cover
     if (section.type === 'cover' && section.content) {
       const matchingCover = covers.find(cover => cover.content === section.content);
@@ -395,6 +316,22 @@ const SectionEditor = ({ section, onUpdate }) => {
   }, [section, covers]);
 
   const handleSave = () => {
+    // Debug: Log the actual content being saved
+    console.log('🔍 SAVING SECTION:', title, 'Type:', type);
+    console.log('📄 Content length:', content?.length || 0);
+    console.log('📄 Content HTML:', content);
+    
+    // Check for tables in the content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    const tables = tempDiv.querySelectorAll('table');
+    console.log('🔍 Tables found in section content:', tables.length);
+    if (tables.length > 0) {
+      tables.forEach((table, index) => {
+        console.log(`📊 Table ${index + 1} HTML:`, table.outerHTML);
+      });
+    }
+
     onUpdate({
       ...section,
       title,
@@ -403,31 +340,15 @@ const SectionEditor = ({ section, onUpdate }) => {
       selectedTeamMembers,
       selectedCaseStudies,
       selectedServices,
-      selectedCoverId
+      selectedCoverId,
+      tableData: type === 'table' ? tableData : section.tableData,
+      tableTitle: type === 'table' ? tableTitle : section.tableTitle,
+      tableDescription: type === 'table' ? tableDescription : section.tableDescription
     });
     setHasChanges(false);
   };
 
-  const insertTable = (rows = 3, cols = 3) => {
-    let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">';
-    tableHTML += '<thead><tr>';
-    for (let j = 0; j < cols; j++) {
-      tableHTML += '<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;">Header ' + (j + 1) + '</th>';
-    }
-    tableHTML += '</tr></thead><tbody>';
-    
-    for (let i = 0; i < rows; i++) {
-      tableHTML += '<tr>';
-      for (let j = 0; j < cols; j++) {
-        tableHTML += '<td style="border: 1px solid #ddd; padding: 8px;">Cell ' + (i + 1) + ',' + (j + 1) + '</td>';
-      }
-      tableHTML += '</tr>';
-    }
-    tableHTML += '</tbody></table>';
-    
-    setContent(content + tableHTML);
-    setHasChanges(true);
-  };
+
 
   const createNewTable = (rows = 3, cols = 3) => {
     const newTableData = [];
@@ -448,13 +369,14 @@ const SectionEditor = ({ section, onUpdate }) => {
     }
     
     setTableData(newTableData);
-    setShowTableBuilder(true);
+    setHasChanges(true);
   };
 
   const updateTableCell = (rowIndex, colIndex, value) => {
     const newTableData = [...tableData];
     newTableData[rowIndex][colIndex] = value;
     setTableData(newTableData);
+    setHasChanges(true);
   };
 
   const addTableRow = () => {
@@ -483,31 +405,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     }
   };
 
-  const insertTableIntoContent = () => {
-    let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">';
-    
-    // Header row
-    tableHTML += '<thead><tr>';
-    tableData[0].forEach(cell => {
-      tableHTML += `<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; font-weight: 600;">${cell}</th>`;
-    });
-    tableHTML += '</tr></thead>';
-    
-    // Data rows
-    tableHTML += '<tbody>';
-    for (let i = 1; i < tableData.length; i++) {
-      tableHTML += '<tr>';
-      tableData[i].forEach(cell => {
-        tableHTML += `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`;
-      });
-      tableHTML += '</tr>';
-    }
-    tableHTML += '</tbody></table>';
-    
-    setContent(content + tableHTML);
-    setShowTableBuilder(false);
-    setHasChanges(true);
-  };
+
 
   const getCurrentClient = () => {
     if (!currentProposal?.clientId) return null;
@@ -651,6 +549,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'cvs', label: 'Team CVs' },
     { value: 'case-study', label: 'Case Study' },
     { value: 'services', label: 'Services' },
+    { value: 'table', label: 'Table Section' },
     // { value: 'testimonials', label: 'Testimonials' },
     // { value: 'page-break', label: 'Page Break' },
     { value: 'custom', label: 'Custom Section' }
@@ -906,6 +805,174 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
+      {/* Dedicated Table Section */}
+      {type === 'table' && (
+        <SelectorContainer>
+          {/* Tips for Table Section */}
+          <div style={{
+            background: '#e3f2fd',
+            border: '1px solid #2196f3',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px',
+            fontSize: '14px',
+            color: '#1976d2'
+          }}>
+            <strong>💡 Table Section:</strong>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+              <li>Create and edit your table using the builder below</li>
+              <li>Add a title and description for your table</li>
+              <li>Tables are stored as structured data for perfect DOCX export</li>
+            </ul>
+          </div>
+
+          {/* Table Title */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
+              Table Title (Optional)
+            </label>
+            <Input
+              type="text"
+              value={tableTitle}
+              onChange={(e) => {
+                setTableTitle(e.target.value);
+                setHasChanges(true);
+              }}
+              placeholder="Enter table title..."
+            />
+          </div>
+
+          {/* Table Description */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
+              Table Description (Optional)
+            </label>
+            <textarea
+              value={tableDescription}
+              onChange={(e) => {
+                setTableDescription(e.target.value);
+                setHasChanges(true);
+              }}
+              placeholder="Describe what this table shows..."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <SelectorTitle>
+            <FiTable />
+            Table Builder
+          </SelectorTitle>
+          
+          <TableToolbar>
+            <TableButton onClick={() => createNewTable(2, 2)}>
+              2x2 Table
+            </TableButton>
+            <TableButton onClick={() => createNewTable(3, 3)}>
+              3x3 Table
+            </TableButton>
+            <TableButton onClick={() => createNewTable(4, 3)}>
+              4x3 Table
+            </TableButton>
+            <TableButton onClick={() => createNewTable(5, 4)}>
+              5x4 Table
+            </TableButton>
+          </TableToolbar>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <TableButton onClick={addTableRow}>+ Add Row</TableButton>
+            <TableButton onClick={removeTableRow}>- Remove Row</TableButton>
+            <TableButton onClick={addTableColumn}>+ Add Column</TableButton>
+            <TableButton onClick={removeTableColumn}>- Remove Column</TableButton>
+          </div>
+          
+          {/* Table Editor */}
+          {tableData && tableData.length > 0 && (
+            <div style={{ 
+              border: '1px solid #ddd', 
+              borderRadius: '8px', 
+              overflow: 'auto',
+              marginBottom: '16px',
+              width: '100%'
+            }}>
+              <table style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed'
+              }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fa' }}>
+                    {tableData[0]?.map((cell, colIndex) => (
+                      <th key={colIndex} style={{ 
+                        border: '1px solid #ddd', 
+                        padding: '12px',
+                        textAlign: 'left',
+                        width: `${100 / tableData[0].length}%`,
+                        verticalAlign: 'top'
+                      }}>
+                        <input
+                          type="text"
+                          value={cell}
+                          onChange={(e) => updateTableCell(0, colIndex, e.target.value)}
+                          placeholder="Header"
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: '4px',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.slice(1).map((row, rowIndex) => (
+                    <tr key={rowIndex + 1}>
+                      {row.map((cell, colIndex) => (
+                        <td key={colIndex} style={{ 
+                          border: '1px solid #ddd', 
+                          padding: '12px',
+                          verticalAlign: 'top',
+                          width: `${100 / tableData[0].length}%`
+                        }}>
+                          <input
+                            type="text"
+                            value={cell}
+                            onChange={(e) => updateTableCell(rowIndex + 1, colIndex, e.target.value)}
+                            placeholder="Cell content"
+                            style={{
+                              width: '100%',
+                              border: 'none',
+                              background: 'transparent',
+                              padding: '4px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SelectorContainer>
+      )}
+
       {/* Table Functionality for Fees & Timeline */}
       {type === 'fees' && (
         <SelectorContainer>
@@ -914,78 +981,70 @@ const SectionEditor = ({ section, onUpdate }) => {
             Table Tools
           </SelectorTitle>
           <TableToolbar>
-            <TableButton onClick={() => createNewTable(3, 3)}>
-              Create 3x3 Table
+            <TableButton onClick={() => {
+              const tableHtml = `
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                  <thead>
+                    <tr style="background-color: #f8f9fa;">
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Service</th>
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Timeline</th>
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Fee</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Service 1</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">2-3 weeks</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">$X,XXX</td>
+                    </tr>
+                    <tr>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Service 2</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">1-2 weeks</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">$X,XXX</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `;
+              setContent(content + tableHtml);
+              setHasChanges(true);
+            }}>
+              Insert Fees Table
             </TableButton>
-            <TableButton onClick={() => createNewTable(5, 4)}>
-              Create 5x4 Table
-            </TableButton>
-            <TableButton onClick={() => createNewTable(4, 6)}>
-              Create 4x6 Table
+            <TableButton onClick={() => {
+              const timelineHtml = `
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                  <thead>
+                    <tr style="background-color: #f8f9fa;">
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Phase</th>
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Duration</th>
+                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Deliverables</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 1</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Week 1-2</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Initial deliverables</td>
+                    </tr>
+                    <tr>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 2</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Week 3-4</td>
+                      <td style="border: 1px solid #dee2e6; padding: 12px;">Final deliverables</td>
+                    </tr>
+                  </tbody>
+                </table>
+              `;
+              setContent(content + timelineHtml);
+              setHasChanges(true);
+            }}>
+              Insert Timeline Table
             </TableButton>
           </TableToolbar>
-          
-          {showTableBuilder && (
-            <TableBuilder>
-              <TableBuilderHeader>
-                <TableBuilderTitle>Table Builder</TableBuilderTitle>
-                <ControlButton onClick={() => setShowTableBuilder(false)}>
-                  ✕ Close
-                </ControlButton>
-              </TableBuilderHeader>
-              
-              <TableControls>
-                <ControlButton onClick={addTableRow}>+ Add Row</ControlButton>
-                <ControlButton onClick={removeTableRow}>- Remove Row</ControlButton>
-                <ControlButton onClick={addTableColumn}>+ Add Column</ControlButton>
-                <ControlButton onClick={removeTableColumn}>- Remove Column</ControlButton>
-              </TableControls>
-              
-              <EditableTable>
-                <thead>
-                  <tr>
-                    {tableData[0]?.map((cell, colIndex) => (
-                      <EditableHeaderCell key={colIndex}>
-                        <input
-                          type="text"
-                          value={cell}
-                          onChange={(e) => updateTableCell(0, colIndex, e.target.value)}
-                          placeholder="Header"
-                        />
-                      </EditableHeaderCell>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.slice(1).map((row, rowIndex) => (
-                    <tr key={rowIndex + 1}>
-                      {row.map((cell, colIndex) => (
-                        <EditableCell key={colIndex}>
-                          <input
-                            type="text"
-                            value={cell}
-                            onChange={(e) => updateTableCell(rowIndex + 1, colIndex, e.target.value)}
-                            placeholder="Cell content"
-                          />
-                        </EditableCell>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </EditableTable>
-              
-              <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                <TableButton onClick={insertTableIntoContent}>
-                  Insert Table into Content
-                </TableButton>
-              </div>
-            </TableBuilder>
-          )}
         </SelectorContainer>
       )}
 
-      {/* Content Editor - Hidden for page break sections */}
-      {type !== 'page-break' && (
+      {/* Content Editor - Hidden for page break and table sections */}
+      {type !== 'page-break' && type !== 'table' && (
         <FormGroup>
           <Label>Content</Label>
           <QuillContainer>

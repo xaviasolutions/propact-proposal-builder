@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiSettings, FiUpload, FiSave, FiTrash2, FiCopy, FiEdit3, FiImage, FiType, FiLayout, FiDroplet } from 'react-icons/fi';
+import { FiSettings, FiUpload, FiSave, FiTrash2, FiCopy, FiEdit3, FiImage, FiType, FiLayout, FiDroplet, FiRotateCw, FiList } from 'react-icons/fi';
 import { useDropzone } from 'react-dropzone';
 import { ChromePicker } from 'react-color';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,6 +11,7 @@ import {
   setCurrentBranding, 
   updateCurrentBranding 
 } from '../../store/slices/brandingSlice';
+import { updateProposal } from '../../store/slices/proposalsSlice';
 import { processWatermarkImage, saveImageToLocalStorage } from '../../utils/imageProcessor';
 
 const BrandingContainer = styled.div`
@@ -460,6 +461,7 @@ const RemoveButton = styled.button`
 const BrandingTemplates = () => {
   const dispatch = useDispatch();
   const { brandingTemplates, currentBranding } = useSelector(state => state.branding);
+  const { currentProposal } = useSelector(state => state.proposals);
   const [activeTab, setActiveTab] = useState('templates');
   const [showColorPicker, setShowColorPicker] = useState({});
   const [templateName, setTemplateName] = useState('');
@@ -529,12 +531,35 @@ const BrandingTemplates = () => {
             // Update Redux state
             dispatch(updateCurrentBranding({
               watermark: {
+                ...currentBranding.watermark,
+                type: 'image',
                 image: originalImage,
                 transparency: transparency,
                 processedImage: processedImage,
                 storageKey: storageKey
               }
             }));
+            
+            // Sync to proposal after a short delay to ensure state is updated
+            setTimeout(() => {
+              if (currentProposal && currentProposal.id) {
+                dispatch(updateProposal({
+                  id: currentProposal.id,
+                  updates: {
+                    branding: {
+                      ...currentBranding,
+                      watermark: {
+                        ...currentBranding.watermark,
+                        image: file,
+                        transparency: currentBranding.watermark?.transparency || 0.3,
+                        processedImage: processedImage,
+                        storageKey: storageKey
+                      }
+                    }
+                  }
+                }));
+              }
+            }, 100);
           } catch (error) {
             console.error('Error processing watermark:', error);
             alert('Error processing watermark image. Please try again.');
@@ -548,7 +573,7 @@ const BrandingTemplates = () => {
         setIsProcessingWatermark(false);
       }
     }
-  }, [currentBranding.watermark?.transparency, dispatch]);
+  }, [currentBranding.watermark, dispatch]);
 
   const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
     onDrop: onLogoDrop,
@@ -682,6 +707,26 @@ const BrandingTemplates = () => {
           storageKey: storageKey
         }
       }));
+      
+      // Sync to proposal after a short delay to ensure state is updated
+      setTimeout(() => {
+        if (currentProposal && currentProposal.id) {
+          dispatch(updateProposal({
+            id: currentProposal.id,
+            updates: {
+              branding: {
+                ...currentBranding,
+                watermark: {
+                  ...currentBranding.watermark,
+                  transparency: transparency,
+                  processedImage: processedImage,
+                  storageKey: storageKey
+                }
+              }
+            }
+          }));
+        }
+      }, 100);
     } catch (error) {
       console.error('Error updating transparency:', error);
       alert('Error updating transparency. Please try again.');
@@ -708,13 +753,41 @@ const BrandingTemplates = () => {
   const handleRemoveWatermark = () => {
     dispatch(updateCurrentBranding({
       watermark: {
+        type: 'image',
         image: null,
+        text: '',
         transparency: 0.3,
+        rotation: 0,
         processedImage: null,
         storageKey: null
       }
     }));
+    
+    // Sync to proposal after a short delay to ensure state is updated
+    setTimeout(() => {
+      if (currentProposal && currentProposal.id) {
+        dispatch(updateProposal({
+          id: currentProposal.id,
+          updates: {
+            branding: {
+              ...currentBranding,
+              watermark: {
+                type: 'image',
+                image: null,
+                text: '',
+                transparency: 0.3,
+                rotation: 0,
+                processedImage: null,
+                storageKey: null
+              }
+            }
+          }
+        }));
+      }
+    }, 100);
   };
+
+
 
   return (
     <BrandingContainer>
@@ -865,62 +938,235 @@ const BrandingTemplates = () => {
 
                 <FormGroup>
                   <Label>Watermark (Optional)</Label>
-                  {!currentBranding.watermark?.image ? (
-                    <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
-                      <input {...getWatermarkInputProps()} />
-                      <div>
-                        <FiImage size={24} style={{ color: '#666', marginBottom: '8px' }} />
-                        <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-                          Drop watermark here or click to upload
-                        </p>
-                      </div>
-                    </DropzoneArea>
-                  ) : (
+                  
+                  {/* Watermark Type Selection */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(updateCurrentBranding({
+                          watermark: { ...currentBranding.watermark, type: 'image' }
+                        }))}
+                        style={{
+                          padding: '6px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          background: currentBranding.watermark?.type === 'image' ? '#007bff' : '#fff',
+                          color: currentBranding.watermark?.type === 'image' ? '#fff' : '#333',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <FiImage size={12} style={{ marginRight: '4px' }} />
+                        Image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(updateCurrentBranding({
+                          watermark: { ...currentBranding.watermark, type: 'text' }
+                        }))}
+                        style={{
+                          padding: '6px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          background: currentBranding.watermark?.type === 'text' ? '#007bff' : '#fff',
+                          color: currentBranding.watermark?.type === 'text' ? '#fff' : '#333',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <FiType size={12} style={{ marginRight: '4px' }} />
+                        Text
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Watermark */}
+                  {currentBranding.watermark?.type === 'image' && (
                     <div>
-                      <WatermarkPreview>
-                        <img 
-                          src={currentBranding.watermark.processedImage || currentBranding.watermark.image} 
-                          alt="Watermark" 
-                        />
-                        <RemoveButton onClick={handleRemoveWatermark}>
-                          ×
-                        </RemoveButton>
-                      </WatermarkPreview>
+                      {!currentBranding.watermark?.image ? (
+                        <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
+                          <input {...getWatermarkInputProps()} />
+                          <div>
+                            <FiImage size={24} style={{ color: '#666', marginBottom: '8px' }} />
+                            <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
+                              Drop watermark here or click to upload
+                            </p>
+                          </div>
+                        </DropzoneArea>
+                      ) : (
+                        <div>
+                          <WatermarkPreview>
+                            <img 
+                              src={currentBranding.watermark.processedImage || currentBranding.watermark.image} 
+                              alt="Watermark"
+                              style={{
+                                transform: `rotate(${currentBranding.watermark.rotation || 0}deg)`
+                              }}
+                            />
+                            <RemoveButton onClick={handleRemoveWatermark}>
+                              ×
+                            </RemoveButton>
+                          </WatermarkPreview>
+                          
+                          <div style={{ marginTop: '8px' }}>
+                            <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
+                              <input {...getWatermarkInputProps()} />
+                              <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                                Click or drag to replace watermark
+                              </p>
+                            </DropzoneArea>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Text Watermark */}
+                  {currentBranding.watermark?.type === 'text' && (
+                    <div>
+                      <Input
+                        type="text"
+                        placeholder="Enter watermark text..."
+                        value={currentBranding.watermark?.text || ''}
+                        onChange={(e) => {
+                          const newText = e.target.value;
+                          dispatch(updateCurrentBranding({
+                            watermark: { ...currentBranding.watermark, text: newText }
+                          }));
+                          
+                          // Sync to proposal after a short delay
+                          setTimeout(() => {
+                            if (currentProposal?.id) {
+                              dispatch(updateProposal({
+                                id: currentProposal.id,
+                                branding: {
+                                  ...currentBranding,
+                                  watermark: { ...currentBranding.watermark, text: newText }
+                                }
+                              }));
+                            }
+                          }, 100);
+                        }}
+                        style={{ marginBottom: '12px' }}
+                      />
                       
-                      <SliderContainer style={{ marginTop: '12px' }}>
+                      {currentBranding.watermark?.text && (
+                        <div style={{
+                          padding: '20px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          background: '#f8f9fa',
+                          textAlign: 'center',
+                          marginBottom: '12px',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            fontSize: '24px',
+                            color: '#666',
+                            opacity: 1 - (currentBranding.watermark?.transparency || 0.3),
+                            transform: `rotate(${currentBranding.watermark?.rotation || 0}deg)`,
+                            display: 'inline-block'
+                          }}>
+                            {currentBranding.watermark.text}
+                          </div>
+                          <RemoveButton onClick={handleRemoveWatermark}>
+                            ×
+                          </RemoveButton>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Common Controls */}
+                  {((currentBranding.watermark?.type === 'image' && currentBranding.watermark?.image) || 
+                    (currentBranding.watermark?.type === 'text' && currentBranding.watermark?.text)) && (
+                    <div>
+                      {/* Transparency Control */}
+                      <SliderContainer style={{ marginBottom: '12px' }}>
                         <SliderLabel>
                           <span>
                             <FiDroplet size={14} style={{ marginRight: '4px' }} />
-                            Transparency
+                            Opacity
                           </span>
                           <span>{Math.round(localTransparency * 100)}%</span>
                         </SliderLabel>
                         <Slider
                           type="range"
-                          min={0.1}
-                          max={1}
+                          min={0.05}
+                          max={0.95}
                           step="0.05"
                           value={localTransparency}
                           onChange={(e) => handleTransparencyChange(parseFloat(e.target.value))}
                           disabled={isProcessingWatermark}
                         />
                       </SliderContainer>
-                      
+
+                      {/* Rotation Control */}
+                      <SliderContainer>
+                        <SliderLabel>
+                          <span>
+                            <FiRotateCw size={14} style={{ marginRight: '4px' }} />
+                            Rotation
+                          </span>
+                          <span>{currentBranding.watermark?.rotation || 0}°</span>
+                        </SliderLabel>
+                        <Slider
+                          type="range"
+                          min={-180}
+                          max={180}
+                          step="15"
+                          value={currentBranding.watermark?.rotation || 0}
+                          onChange={(e) => {
+                            const newRotation = parseInt(e.target.value);
+                            dispatch(updateCurrentBranding({
+                              watermark: { ...currentBranding.watermark, rotation: newRotation }
+                            }));
+                            
+                            // Sync to proposal after a short delay
+                            setTimeout(() => {
+                              if (currentProposal?.id) {
+                                dispatch(updateProposal({
+                                  id: currentProposal.id,
+                                  branding: {
+                                    ...currentBranding,
+                                    watermark: { ...currentBranding.watermark, rotation: newRotation }
+                                  }
+                                }));
+                              }
+                            }, 100);
+                          }}
+                        />
+                      </SliderContainer>
+
+                      {/* Remove Watermark Button */}
+                      <div style={{ marginTop: '16px' }}>
+                        <Button 
+                          onClick={handleRemoveWatermark}
+                          style={{ 
+                            background: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <FiTrash2 size={14} />
+                          Remove Watermark
+                        </Button>
+                      </div>
+
                       {isProcessingWatermark && (
                         <ProcessingIndicator>
                           <FiSettings size={12} style={{ animation: 'spin 1s linear infinite' }} />
                           Processing watermark...
                         </ProcessingIndicator>
                       )}
-                      
-                      <div style={{ marginTop: '8px' }}>
-                        <DropzoneArea {...getWatermarkRootProps()} isDragActive={isWatermarkDragActive}>
-                          <input {...getWatermarkInputProps()} />
-                          <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
-                            Click or drag to replace watermark
-                          </p>
-                        </DropzoneArea>
-                      </div>
                     </div>
                   )}
                 </FormGroup>
@@ -932,6 +1178,23 @@ const BrandingTemplates = () => {
                 <FiSettings size={20} />
                 Color Scheme
               </SectionTitle>
+              
+              <div style={{ 
+                marginBottom: '20px', 
+                padding: '12px', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '6px', 
+                fontSize: '14px', 
+                color: '#6c757d',
+                lineHeight: '1.5'
+              }}>
+                <strong>Color Usage Guide:</strong>
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                  <li><strong>Primary Color:</strong> Main headings and key document elements</li>
+                  <li><strong>Secondary Color:</strong> Subheadings, borders, and supporting text</li>
+                  <li><strong>Accent Color:</strong> Highlights, emphasis, and decorative elements</li>
+                </ul>
+              </div>
               
               <FormGrid>
                 <FormGroup>
@@ -1044,23 +1307,594 @@ const BrandingTemplates = () => {
                   />
                 </FormGroup>
 
-                <FormGroup>
+                <FormGroup style={{ gridColumn: '1 / -1' }}>
                   <Label>Header Text</Label>
                   <TextArea
                     value={currentBranding.headerText || ''}
                     onChange={(e) => handleInputChange('headerText', e.target.value)}
                     placeholder="Header content for proposals..."
                   />
+                  
+                  {/* Header Formatting Options */}
+                  <div style={{ 
+                    marginTop: '16px', 
+                    padding: '16px', 
+                    backgroundColor: '#f8f9fa', 
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef',
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+                    gap: '16px' 
+                  }}>
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Text Alignment
+                      </Label>
+                      <Select
+                        value={currentBranding.headerAlignment || 'center'}
+                        onChange={(e) => handleInputChange('headerAlignment', e.target.value)}
+                        style={{ 
+                          fontSize: '14px', 
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ced4da',
+                          backgroundColor: '#ffffff',
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          color: '#495057',
+                          transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+                        }}
+                      >
+                        <option value="left">← Left Align</option>
+                        <option value="center">⬌ Center Align</option>
+                        <option value="right">→ Right Align</option>
+                        <option value="justify">⬌ Justify</option>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Font Size
+                      </Label>
+                      <Select
+                        value={currentBranding.headerFontSize || '24'}
+                        onChange={(e) => handleInputChange('headerFontSize', e.target.value)}
+                        style={{ 
+                          fontSize: '14px', 
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ced4da',
+                          backgroundColor: '#ffffff',
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          color: '#495057',
+                          transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+                        }}
+                      >
+                        <option value="11">11 pt</option>
+                        <option value="12">12 pt</option>
+                        <option value="13">13 pt</option>
+                        <option value="14">14 pt</option>
+                        <option value="15">15 pt</option>
+                        <option value="16">16 pt</option>
+                        <option value="17">17 pt</option>
+                        <option value="18">18 pt</option>
+                        <option value="19">19 pt</option>
+                        <option value="20">20 pt</option>
+                        <option value="21">21 pt</option>
+                        <option value="22">22 pt</option>
+                        <option value="23">23 pt</option>
+                        <option value="24">24 pt</option>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Text Style
+                      </Label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.headerBold !== false}
+                            onChange={(e) => handleInputChange('headerBold', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <strong>Bold</strong>
+                        </label>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.headerItalic || false}
+                            onChange={(e) => handleInputChange('headerItalic', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <em>Italic</em>
+                        </label>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.headerUnderline || false}
+                            onChange={(e) => handleInputChange('headerUnderline', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <u>Underline</u>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Header Preview */}
+                  {currentBranding.headerText && (
+                    <div style={{ 
+                      marginTop: '16px', 
+                      padding: '12px', 
+                      backgroundColor: '#f8f9fa', 
+                      borderRadius: '6px',
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <Label style={{ fontSize: '12px', marginBottom: '8px', display: 'block', color: '#6c757d' }}>
+                        Header Preview:
+                      </Label>
+                      <div style={{
+                        textAlign: currentBranding.headerAlignment || 'center',
+                        fontSize: `${currentBranding.headerFontSize || 24}px`,
+                        fontWeight: currentBranding.headerBold !== false ? 'bold' : 'normal',
+                        fontStyle: currentBranding.headerItalic ? 'italic' : 'normal',
+                        textDecoration: currentBranding.headerUnderline ? 'underline' : 'none',
+                        fontFamily: currentBranding.fonts?.primary || 'Arial, sans-serif',
+                        color: currentBranding.colors?.primary || '#000000',
+                        lineHeight: '1.2',
+                        minHeight: '1.2em'
+                      }}>
+                        {currentBranding.headerText}
+                      </div>
+                    </div>
+                  )}
                 </FormGroup>
 
-                <FormGroup>
+                <FormGroup style={{ gridColumn: '1 / -1' }}>
                   <Label>Footer Text</Label>
                   <TextArea
                     value={currentBranding.footerText || ''}
                     onChange={(e) => handleInputChange('footerText', e.target.value)}
                     placeholder="Footer content for proposals..."
                   />
+                  
+                  {/* Footer Formatting Options */}
+                  <div style={{ 
+                    marginTop: '16px', 
+                    padding: '16px', 
+                    backgroundColor: '#f8f9fa', 
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef',
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+                    gap: '16px' 
+                  }}>
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Text Alignment
+                      </Label>
+                      <Select
+                        value={currentBranding.footerAlignment || 'center'}
+                        onChange={(e) => handleInputChange('footerAlignment', e.target.value)}
+                        style={{ 
+                          fontSize: '14px', 
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ced4da',
+                          backgroundColor: '#ffffff',
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          color: '#495057',
+                          transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+                        }}
+                      >
+                        <option value="left">← Left Align</option>
+                        <option value="center">⬌ Center Align</option>
+                        <option value="right">→ Right Align</option>
+                        <option value="justify">⬌ Justify</option>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Font Size
+                      </Label>
+                      <Select
+                        value={currentBranding.footerFontSize || '20'}
+                        onChange={(e) => handleInputChange('footerFontSize', e.target.value)}
+                        style={{ 
+                          fontSize: '14px', 
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #ced4da',
+                          backgroundColor: '#ffffff',
+                          width: '100%',
+                          fontFamily: 'inherit',
+                          color: '#495057',
+                          transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+                        }}
+                      >
+                        <option value="11">11 pt</option>
+                        <option value="12">12 pt</option>
+                        <option value="13">13 pt</option>
+                        <option value="14">14 pt</option>
+                        <option value="15">15 pt</option>
+                        <option value="16">16 pt</option>
+                        <option value="17">17 pt</option>
+                        <option value="18">18 pt</option>
+                        <option value="19">19 pt</option>
+                        <option value="20">20 pt</option>
+                        <option value="21">21 pt</option>
+                        <option value="22">22 pt</option>
+                        <option value="23">23 pt</option>
+                        <option value="24">24 pt</option>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600', 
+                        marginBottom: '8px', 
+                        display: 'block',
+                        color: '#495057'
+                      }}>
+                        Text Style
+                      </Label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.footerBold || false}
+                            onChange={(e) => handleInputChange('footerBold', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <strong>Bold</strong>
+                        </label>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.footerItalic !== false}
+                            onChange={(e) => handleInputChange('footerItalic', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <em>Italic</em>
+                        </label>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '13px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '4px 0'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.footerUnderline || false}
+                            onChange={(e) => handleInputChange('footerUnderline', e.target.checked)}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          <u>Underline</u>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Footer Preview */}
+                  {currentBranding.footerText && (
+                    <div style={{ 
+                      marginTop: '16px', 
+                      padding: '12px', 
+                      backgroundColor: '#f8f9fa', 
+                      borderRadius: '6px',
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <Label style={{ fontSize: '12px', marginBottom: '8px', display: 'block', color: '#6c757d' }}>
+                        Footer Preview:
+                      </Label>
+                      <div style={{
+                        textAlign: currentBranding.footerAlignment || 'center',
+                        fontSize: `${currentBranding.footerFontSize || 20}px`,
+                        fontWeight: currentBranding.footerBold ? 'bold' : 'normal',
+                        fontStyle: currentBranding.footerItalic !== false ? 'italic' : 'normal',
+                        textDecoration: currentBranding.footerUnderline ? 'underline' : 'none',
+                        fontFamily: currentBranding.fonts?.primary || 'Arial, sans-serif',
+                        color: currentBranding.colors?.secondary || '#888888',
+                        lineHeight: '1.2',
+                        minHeight: '1.2em'
+                      }}>
+                        {currentBranding.footerText}
+                      </div>
+                    </div>
+                  )}
                 </FormGroup>
+              </FormGrid>
+            </EditorSection>
+
+            <EditorSection style={{ marginTop: '20px' }}>
+              <SectionTitle>
+                <FiList size={20} />
+                Table of Contents
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={currentBranding.tableOfContents?.enabled !== false}
+                      onChange={(e) => handleInputChange('tableOfContents', {
+                        ...currentBranding.tableOfContents,
+                        enabled: e.target.checked
+                      })}
+                      style={{ 
+                        width: '16px', 
+                        height: '16px',
+                        accentColor: '#007bff'
+                      }}
+                    />
+                    Enable Table of Contents
+                  </Label>
+                </FormGroup>
+
+                {currentBranding.tableOfContents?.enabled !== false && (
+                  <>
+                    <FormGroup>
+                      <div style={{ 
+                        fontSize: '14px', 
+                        color: '#495057', 
+                        marginBottom: '8px',
+                        padding: '12px',
+                        backgroundColor: '#e7f3ff',
+                        borderRadius: '6px',
+                        border: '1px solid #b3d9ff'
+                      }}>
+                        ✨ <strong>Manual Table of Contents</strong> - Generated with your custom styling and formatting applied immediately
+                      </div>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Heading Levels</Label>
+                      <Select
+                        value={currentBranding.tableOfContents?.headingLevels || '1-3'}
+                        onChange={(e) => handleInputChange('tableOfContents', {
+                          ...currentBranding.tableOfContents,
+                          headingLevels: e.target.value
+                        })}
+                      >
+                        <option value="1">Level 1 only</option>
+                        <option value="1-2">Levels 1-2</option>
+                        <option value="1-3">Levels 1-3</option>
+                        <option value="1-4">Levels 1-4</option>
+                        <option value="1-5">Levels 1-5</option>
+                      </Select>
+                    </FormGroup>
+
+                    <FormGroup style={{ gridColumn: '1 / -1' }}>
+                      <Label>TOC Options</Label>
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                        gap: '12px',
+                        marginTop: '8px'
+                      }}>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '14px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '8px 12px',
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '6px',
+                          border: '1px solid #e9ecef'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.tableOfContents?.showPageNumbers !== false}
+                            onChange={(e) => handleInputChange('tableOfContents', {
+                              ...currentBranding.tableOfContents,
+                              showPageNumbers: e.target.checked
+                            })}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          Show Page Numbers
+                        </label>
+
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px', 
+                          fontSize: '14px',
+                          color: '#495057',
+                          cursor: 'pointer',
+                          padding: '8px 12px',
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '6px',
+                          border: '1px solid #e9ecef'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={currentBranding.tableOfContents?.includeHyperlinks !== false}
+                            onChange={(e) => handleInputChange('tableOfContents', {
+                              ...currentBranding.tableOfContents,
+                              includeHyperlinks: e.target.checked
+                            })}
+                            style={{ 
+                              width: '16px', 
+                              height: '16px',
+                              accentColor: '#007bff'
+                            }}
+                          />
+                          Include Hyperlinks
+                        </label>
+                      </div>
+                    </FormGroup>
+
+                    {/* TOC Preview */}
+                    <FormGroup style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ 
+                        marginTop: '16px', 
+                        padding: '16px', 
+                        backgroundColor: '#f8f9fa', 
+                        borderRadius: '8px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        <Label style={{ fontSize: '13px', marginBottom: '12px', display: 'block', color: '#6c757d' }}>
+                          TOC Preview (Manual Generation with Custom Styling):
+                        </Label>
+                        <div style={{
+                          fontFamily: currentBranding.fonts?.primary || 'Arial, sans-serif',
+                          fontSize: '14px',
+                          lineHeight: '1.6'
+                        }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '12px', textAlign: 'center' }}>
+                            Table of Contents
+                          </div>
+                          
+                          <div style={{ 
+                            color: '#495057',
+                            textAlign: 'left'
+                          }}>
+                            <div style={{ marginLeft: '0px', marginBottom: '8px' }}>
+                              1. Introduction {currentBranding.tableOfContents?.showPageNumbers !== false && '.......................'} {currentBranding.tableOfContents?.showPageNumbers !== false && '3'}
+                            </div>
+                            <div style={{ marginLeft: '0px', marginBottom: '8px' }}>
+                              2. Project Overview {currentBranding.tableOfContents?.showPageNumbers !== false && '................'} {currentBranding.tableOfContents?.showPageNumbers !== false && '5'}
+                            </div>
+                            {(currentBranding.tableOfContents?.headingLevels || '1-3').includes('2') && (
+                              <div style={{ marginLeft: '20px', fontSize: '13px', marginBottom: '8px' }}>
+                                2.1 Objectives {currentBranding.tableOfContents?.showPageNumbers !== false && '........................'} {currentBranding.tableOfContents?.showPageNumbers !== false && '6'}
+                              </div>
+                            )}
+                            <div style={{ marginLeft: '0px', marginBottom: '8px' }}>
+                              3. Implementation {currentBranding.tableOfContents?.showPageNumbers !== false && '...................'} {currentBranding.tableOfContents?.showPageNumbers !== false && '8'}
+                            </div>
+                            {(currentBranding.tableOfContents?.headingLevels || '1-3').includes('3') && (
+                              <div style={{ marginLeft: '40px', fontSize: '12px', marginBottom: '8px' }}>
+                                3.1.1 Phase 1 {currentBranding.tableOfContents?.showPageNumbers !== false && '........................'} {currentBranding.tableOfContents?.showPageNumbers !== false && '9'}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div style={{ 
+                            marginTop: '12px',
+                            padding: '8px',
+                            backgroundColor: '#e7f3ff',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            color: '#0066cc'
+                          }}>
+                            ✨ This will be generated with your custom fonts and colors applied immediately - no manual updates needed in MS Word!
+                          </div>
+                        </div>
+                      </div>
+                    </FormGroup>
+                  </>
+                )}
               </FormGrid>
             </EditorSection>
 

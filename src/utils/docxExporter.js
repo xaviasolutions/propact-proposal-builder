@@ -11,6 +11,18 @@ import {
   VerticalPositionAlign,
   HorizontalPositionAlign,
   TextWrappingType,
+  VerticalAlign,
+  TableOfContents,
+  TabStopType,
+  TabStopPosition,
+  LeaderType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  TableLayoutType,
+  TextDirection,
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -20,6 +32,7 @@ const DEBUG_FLAGS = {
   renderFooter: true,
   renderTitlePage: true,
   renderTableOfContents: true,
+  useBuiltInTOC: true, // true = MS Word built-in TOC with page numbers, false = programmatic TOC
   renderSections: true,
   renderCustomFonts: true,
   renderCustomColors: true,
@@ -121,15 +134,28 @@ const calculateContainedDimensions = (originalWidth, originalHeight, containerWi
 function renderHeader(branding) {
   if (!DEBUG_FLAGS.renderHeader) return undefined;
 
+  // Map alignment values
+  const getAlignment = (alignment) => {
+    switch (alignment) {
+      case 'left': return AlignmentType.LEFT;
+      case 'right': return AlignmentType.RIGHT;
+      case 'justify': return AlignmentType.JUSTIFIED;
+      case 'center':
+      default: return AlignmentType.CENTER;
+    }
+  };
+
   return new Header({
     children: [
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: getAlignment(branding?.headerAlignment),
         children: [
           new TextRun({
             text: branding?.headerText || '',
-            bold: true,
-            size: 24,
+            bold: branding?.headerBold !== false, // Default to true
+            italics: branding?.headerItalic || false,
+            underline: branding?.headerUnderline ? {} : undefined,
+            size: parseInt(branding?.headerFontSize || '24') * 2, // Convert pt to half-points
             font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
             color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
           })
@@ -142,15 +168,28 @@ function renderHeader(branding) {
 function renderFooter(branding) {
   if (!DEBUG_FLAGS.renderFooter) return undefined;
 
+  // Map alignment values
+  const getAlignment = (alignment) => {
+    switch (alignment) {
+      case 'left': return AlignmentType.LEFT;
+      case 'right': return AlignmentType.RIGHT;
+      case 'justify': return AlignmentType.JUSTIFIED;
+      case 'center':
+      default: return AlignmentType.CENTER;
+    }
+  };
+
   return new Footer({
     children: [
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: getAlignment(branding?.footerAlignment),
         children: [
           new TextRun({
             text: branding?.footerText || '',
-            italics: true,
-            size: 20,
+            bold: branding?.footerBold || false,
+            italics: branding?.footerItalic !== false, // Default to true
+            underline: branding?.footerUnderline ? {} : undefined,
+            size: parseInt(branding?.footerFontSize || '20') * 2, // Convert pt to half-points
             font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
             color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.secondary?.replace('#', '') || '888888') : '888888'
           })
@@ -161,9 +200,20 @@ function renderFooter(branding) {
 }
 
 async function renderWatermarkImage(branding) {
-  if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) return [];
+  console.log('renderWatermarkImage called');
+  console.log('DEBUG_FLAGS.renderWatermark:', DEBUG_FLAGS.renderWatermark);
+  console.log('DEBUG_FLAGS.renderImages:', DEBUG_FLAGS.renderImages);
 
-  const image = branding?.watermark?.processedImage || branding?.watermark?.image || branding?.watermark;
+  if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) {
+    console.log('Watermark or images disabled by debug flags');
+    return [];
+  }
+
+  const watermark = branding?.watermark;
+  const image = watermark?.processedImage || watermark?.image;
+  console.log('Image data found:', !!image);
+  console.log('Image valid:', isValidImageData(image));
+
   if (!image || !isValidImageData(image)) {
     console.warn('Invalid or missing watermark image data');
     return [];
@@ -177,11 +227,15 @@ async function renderWatermarkImage(branding) {
     const safeWidth = Math.max(contained.width, 50);
     const safeHeight = Math.max(contained.height, 50);
 
+    // Get rotation angle (default to 0 if not specified)
+    const rotation = watermark?.rotation || 0;
+
     const watermarkImage = new ImageRun({
       data: getImageBuffer(image),
       transformation: {
         width: safeWidth,
-        height: safeHeight
+        height: safeHeight,
+        rotation: rotation // Add rotation support
       },
       type: getImageFormat(image),
       floating: {
@@ -203,74 +257,601 @@ async function renderWatermarkImage(branding) {
 
     return [new Paragraph({ children: [watermarkImage] })];
   } catch (err) {
-    console.warn('Watermark render failed:', err);
+    console.warn('Watermark image render failed:', err);
     return [];
   }
 }
 
-function convertHtmlToDocxParagraphs(html, branding) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const body = doc.body;
-  const paragraphs = [];
+// Function to convert text to PNG image
+function createTextWatermarkImage(text, options = {}) {
+  console.log('Creating text watermark image for:', text);
 
-  function parseNode(node, styles = {}) {
-    const children = [];
+  const {
+    fontSize = 48,
+    color = '#CCCCCC',
+    transparency = 0.3,
+    rotation = 0,
+    fontFamily = 'Arial',
+    bold = true,
+    italics = false
+  } = options;
 
-    node.childNodes.forEach((child) => {
-      if (child.nodeType === Node.TEXT_NODE) {
-        const text = child.textContent;
-        if (text.trim()) {
-          children.push(new TextRun({
-            text,
-            bold: styles.bold,
-            italics: styles.italics,
-            underline: styles.underline,
-            color: DEBUG_FLAGS.renderCustomColors ? (styles.color || branding?.colors?.primary?.replace('#', '') || '000000') : '000000',
-            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
-          }));
-        }
-      }
+  try {
+    // Create a canvas element
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const tag = child.tagName.toLowerCase();
-        const childStyles = { ...styles };
+    // Set canvas size (large enough for rotated text)
+    const canvasSize = 800;
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
 
-        if (tag === 'strong' || tag === 'b') childStyles.bold = true;
-        if (tag === 'em' || tag === 'i') childStyles.italics = true;
-        if (tag === 'u') childStyles.underline = {};
-        if (tag === 'span' && child.style.color) childStyles.color = child.style.color.replace('#', '');
+    // Calculate opacity from transparency (transparency is 0-1, where 0 = opaque, 1 = transparent)
+    // Use transparency directly to match image watermark behavior
+    const opacity = Math.max(0.05, Math.min(0.95, transparency));
 
-        children.push(...parseNode(child, childStyles));
+    console.log('Transparency calculation:', { transparency, opacity });
+
+    // Set font properties
+    let fontStyle = '';
+    if (italics) fontStyle += 'italic ';
+    if (bold) fontStyle += 'bold ';
+    fontStyle += `${fontSize}px ${fontFamily}`;
+
+    ctx.font = fontStyle;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Convert hex color to rgba
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+
+    // Save context for rotation
+    ctx.save();
+
+    // Move to center and rotate
+    ctx.translate(canvasSize / 2, canvasSize / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
+
+    // Draw the text
+    ctx.fillText(text.toUpperCase(), 0, 0);
+
+    // Restore context
+    ctx.restore();
+
+    // Convert canvas to data URL
+    const dataUrl = canvas.toDataURL('image/png');
+    console.log('Text watermark image created successfully');
+
+    return dataUrl;
+  } catch (err) {
+    console.error('Failed to create text watermark image:', err);
+    return null;
+  }
+}
+
+async function renderWatermarkText(branding) {
+  console.log('renderWatermarkText called');
+  console.log('DEBUG_FLAGS.renderWatermark:', DEBUG_FLAGS.renderWatermark);
+
+  if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) {
+    console.log('Watermark or images disabled by debug flags');
+    return [];
+  }
+
+  const watermark = branding?.watermark;
+  const text = watermark?.text;
+  console.log('Text watermark content:', text);
+  console.log('Full watermark object:', watermark);
+
+  if (!text || typeof text !== 'string' || text.trim() === '') {
+    console.log('No valid text content for watermark');
+    return [];
+  }
+
+  try {
+    // Get watermark properties with defaults
+    const fontSize = watermark?.fontSize || 48;
+    const color = watermark?.color || branding?.colors?.primary || '#CCCCCC';
+    const transparency = watermark?.transparency || 0.3;
+    const rotation = watermark?.rotation || 0;
+    const fontFamily = branding?.fonts?.primary || 'Arial';
+
+    console.log('Text watermark properties:', {
+      text,
+      fontSize,
+      color,
+      transparency,
+      rotation,
+      fontFamily
+    });
+
+    // Create PNG image from text
+    const textImageDataUrl = createTextWatermarkImage(text, {
+      fontSize,
+      color,
+      transparency,
+      rotation,
+      fontFamily,
+      bold: true,
+      italics: watermark?.italics || false
+    });
+
+    if (!textImageDataUrl) {
+      console.warn('Failed to create text watermark image');
+      return [];
+    }
+
+    // Convert data URL to Uint8Array (browser-compatible)
+    const base64Data = textImageDataUrl.split(',')[1];
+    const binaryString = atob(base64Data);
+    const imageBuffer = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      imageBuffer[i] = binaryString.charCodeAt(i);
+    }
+
+    // Create watermark image using the same approach as image watermarks
+    const watermarkImage = new ImageRun({
+      data: imageBuffer,
+      transformation: {
+        width: 400,
+        height: 400
+      },
+      type: 'png',
+      floating: {
+        horizontalPosition: {
+          align: HorizontalPositionAlign.CENTER,
+          relative: 'page'
+        },
+        verticalPosition: {
+          align: VerticalPositionAlign.CENTER,
+          relative: 'page'
+        },
+        wrap: {
+          type: TextWrappingType.NONE
+        },
+        behindDocument: true,
+        allowOverlap: true
       }
     });
 
-    return children;
+    console.log('Text watermark image created successfully');
+    return [new Paragraph({ children: [watermarkImage] })];
+  } catch (err) {
+    console.warn('Watermark text render failed:', err);
+    return [];
+  }
+}
+
+async function renderWatermark(branding) {
+  console.log('renderWatermark called with branding:', branding);
+  const watermark = branding?.watermark;
+  console.log('Watermark object:', watermark);
+
+  if (!watermark) {
+    console.log('No watermark found in branding');
+    return [];
   }
 
-  body.childNodes.forEach((node) => {
-    const tag = node.tagName?.toLowerCase();
+  // Check watermark type and content
+  if (watermark.type === 'image' && watermark.image) {
+    console.log('Rendering image watermark');
+    return await renderWatermarkImage(branding);
+  } else if (watermark.type === 'text' && watermark.text && watermark.text.trim() !== '') {
+    console.log('Rendering text watermark');
+    return renderWatermarkText(branding);
+  }
 
-    if (/^h[1-6]$/.test(tag)) {
-      paragraphs.push(new Paragraph({
-        heading: HeadingLevel[`HEADING_${tag[1]}`],
-        children: parseNode(node),
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
-      }));
-    } else if (tag === 'p') {
-      paragraphs.push(new Paragraph({
-        children: parseNode(node),
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
-      }));
-    } else if (tag === 'br') {
-      paragraphs.push(new Paragraph({ children: [] }));
+  console.log('No valid watermark content found');
+  return []; // No watermark
+}
+
+function convertHtmlToDocxParagraphs(html, branding) {
+  console.log('=== SEPARATE TABLE PROCESSING MECHANISM ===');
+  console.log('🔍 Input HTML length:', html?.length || 0);
+  console.log('🔍 Input HTML preview:', html?.substring(0, 200) || 'No HTML content');
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const body = doc.body;
+
+  console.log('📄 Parsed body innerHTML:', body?.innerHTML || 'No body content');
+  console.log('📄 Body children count:', body?.children?.length || 0);
+
+  // Check for tables in the entire document
+  const allTables = doc.querySelectorAll('table');
+  console.log('🔍 TOTAL TABLES FOUND IN DOCUMENT:', allTables.length);
+
+  if (allTables.length > 0) {
+    allTables.forEach((table, index) => {
+      console.log(`📊 Table ${index + 1}:`, table.outerHTML.substring(0, 100) + '...');
+    });
+  }
+
+  const elements = [];
+
+  // STEP 1: Create a map of content with position markers
+  const contentMap = [];
+  let elementIndex = 0;
+
+  // STEP 2: Process each child node and mark table positions
+  function mapContent(parentNode) {
+    console.log('🔍 Mapping content from:', parentNode.tagName || 'TEXT_NODE');
+    console.log('🔍 Child nodes count:', parentNode.childNodes?.length || 0);
+
+    Array.from(parentNode.childNodes).forEach((node, nodeIndex) => {
+      console.log(`🔍 Processing node ${nodeIndex + 1}:`, node.nodeType, node.tagName || 'TEXT');
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName?.toLowerCase();
+        console.log(`🏷️ Element tag: ${tag}`);
+
+        if (tag === 'table') {
+          // Mark table position
+          contentMap.push({
+            type: 'table',
+            index: elementIndex++,
+            node: node,
+            processed: false
+          });
+          console.log('🔍 ✅ TABLE DETECTED at position:', elementIndex - 1);
+          console.log('📊 Table HTML:', node.outerHTML.substring(0, 200) + '...');
+        } else {
+          // Check if this element contains tables
+          const nestedTables = node.querySelectorAll('table');
+          if (nestedTables.length > 0) {
+            console.log(`🔍 Found ${nestedTables.length} nested tables in ${tag} element`);
+            // Process nested content recursively
+            mapContent(node);
+          } else {
+            // Mark non-table content position
+            contentMap.push({
+              type: 'content',
+              index: elementIndex++,
+              node: node,
+              processed: false
+            });
+            console.log(`📝 Content element: ${tag} at position:`, elementIndex - 1);
+          }
+        }
+      } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+        // Mark text content position
+        contentMap.push({
+          type: 'text',
+          index: elementIndex++,
+          node: node,
+          processed: false
+        });
+        console.log('📄 Text content at position:', elementIndex - 1, ':', node.textContent.trim().substring(0, 50));
+      }
+    });
+  }
+
+  mapContent(body);
+  console.log('📋 Content map created with', contentMap.length, 'items');
+  console.log('📋 Content map summary:', contentMap.map(item => `${item.type}(${item.index})`).join(', '));
+
+  // STEP 3: Process content in sequence
+  contentMap.forEach((item) => {
+    if (item.type === 'table') {
+      console.log('🔧 PROCESSING TABLE at position:', item.index);
+      const table = createDocxTable(item.node, branding);
+      if (table) {
+        elements.push(table);
+        console.log('✅ TABLE SUCCESSFULLY ADDED');
+      } else {
+        console.log('❌ TABLE CREATION FAILED');
+        // Add fallback text
+        const textContent = item.node.textContent?.trim();
+        if (textContent) {
+          elements.push(new Paragraph({
+            children: [new TextRun({ text: `[Table: ${textContent.substring(0, 50)}...]` })],
+            spacing: { after: 200 }
+          }));
+        }
+      }
+    } else if (item.type === 'content') {
+      console.log('📝 PROCESSING CONTENT at position:', item.index);
+      const contentElements = processNonTableContent(item.node, branding);
+      elements.push(...contentElements);
+    } else if (item.type === 'text') {
+      console.log('📄 PROCESSING TEXT at position:', item.index);
+      const text = item.node.textContent?.trim();
+      if (text) {
+        elements.push(new Paragraph({
+          children: [new TextRun({
+            text,
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+          })],
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        }));
+      }
     }
   });
 
-  return paragraphs;
+  console.log('🎯 FINAL ELEMENTS COUNT:', elements.length);
+  return elements;
+}
+
+// SEPARATE TABLE CREATION FUNCTION
+// function createDocxTable(tableNode, branding) {
+//   try {
+//     console.log('🔨 Creating DOCX table...');
+
+//     const rows = [];
+//     const tableRows = tableNode.querySelectorAll('tr');
+
+//     console.log('📊 Table has', tableRows.length, 'rows');
+
+//     if (tableRows.length === 0) {
+//       console.log('⚠️ No rows found in table');
+//       return null;
+//     }
+
+//     tableRows.forEach((rowNode, rowIndex) => {
+//       const cellNodes = rowNode.querySelectorAll('td, th');
+//       console.log(`📋 Row ${rowIndex + 1} has ${cellNodes.length} cells`);
+
+//       if (cellNodes.length === 0) return;
+
+//       // Determine if header row
+//       const isHeaderRow = rowNode.closest('thead') !== null ||
+//         cellNodes[0].tagName.toLowerCase() === 'th' ||
+//         (rowIndex === 0 && !rowNode.closest('tbody'));
+
+//       console.log(`📋 Row ${rowIndex + 1} is ${isHeaderRow ? 'HEADER' : 'DATA'} row`);
+
+//       const cells = [];
+//       cellNodes.forEach((cellNode, cellIndex) => {
+//         const cellText = cellNode.textContent?.trim() || ' ';
+//         console.log(`  📝 Cell ${cellIndex + 1}: "${cellText}"`);
+
+//         cells.push(new TableCell({
+//           children: [new Paragraph({
+//             children: [new TextRun({
+//               text: cellText,
+//               bold: isHeaderRow,
+//               font: branding?.fonts?.primary || 'Arial',
+//               color: branding?.colors?.primary?.replace('#', '') || '000000'
+//             })],
+//             alignment: AlignmentType.LEFT
+//           })],
+//           margins: {
+//             top: 150,
+//             bottom: 150,
+//             left: 150,
+//             right: 150
+//           },
+//           shading: isHeaderRow ? {
+//             fill: branding?.colors?.accent?.replace('#', '') || 'f0f0f0'
+//           } : undefined,
+//           borders: {
+//             top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+//             bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+//             left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+//             right: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
+//           }
+//         }));
+//       });
+
+//       if (cells.length > 0) {
+//         rows.push(new TableRow({ children: cells }));
+//       }
+//     });
+
+//     if (rows.length > 0) {
+//       console.log('✅ Table created successfully with', rows.length, 'rows');
+//       return new Table({
+//         rows: rows,
+//         width: {
+//           size: 12240,
+//           type: WidthType.DXA
+//         },
+//         margins: {
+//           top: 300,
+//           bottom: 300
+//         }
+//       });
+//     }
+
+//     console.log('❌ No valid rows created');
+//     return null;
+
+//   } catch (error) {
+//     console.error('💥 Table creation error:', error);
+//     return null;
+//   }
+// }
+
+function createDocxTable(tableNode, branding) {
+  try {
+    const tableRows = tableNode.querySelectorAll('tr');
+    if (tableRows.length === 0) return null;
+
+    // Determine number of columns (from first row that has cells)
+    const firstRow = Array.from(tableRows).find(row => row.querySelectorAll('td, th').length > 0);
+    const columnCount = firstRow ? firstRow.querySelectorAll('td, th').length : 1;
+    const columnWidth = Math.floor(12240 / columnCount); // Full page width divided by columns
+
+    const rows = Array.from(tableRows).map((rowNode, rowIndex) => {
+      const cellNodes = rowNode.querySelectorAll('td, th');
+      if (cellNodes.length === 0) return null;
+
+      const isHeaderRow =
+        rowNode.closest('thead') !== null ||
+        cellNodes[0].tagName.toLowerCase() === 'th' ||
+        (rowIndex === 0 && !rowNode.closest('tbody'));
+
+      const cells = Array.from(cellNodes).map(cellNode => {
+        const cellText = cellNode.textContent?.trim() || ' ';
+        return new TableCell({
+          width: {
+            size: columnWidth,
+            type: WidthType.DXA
+          },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: cellText,
+                  bold: isHeaderRow,
+                  font: branding?.fonts?.primary || 'Arial',
+                  color: branding?.colors?.primary?.replace('#', '') || '000000',
+                  size: 20, // 10pt
+                })
+              ],
+              alignment: AlignmentType.LEFT,
+              spacing: { after: 100 },
+            })
+          ],
+          margins: {
+            top: 100,
+            bottom: 100,
+            left: 100,
+            right: 100
+          },
+          shading: isHeaderRow ? {
+            fill: branding?.colors?.accent?.replace('#', '') || 'f0f0f0'
+          } : undefined,
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+            left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+            right: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
+          }
+        });
+      });
+
+      return new TableRow({ children: cells });
+    }).filter(Boolean); // remove nulls
+
+    return new Table({
+      rows,
+      width: {
+        size: 12240,
+        type: WidthType.DXA
+      },
+      layout: TableLayoutType.FIXED,
+      margins: {
+        top: 300,
+        bottom: 300
+      },
+      tableLook: {
+        firstRow: true,
+        noHBand: true,
+        noVBand: true
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Error generating DOCX table:', error);
+    return null;
+  }
+}
+
+// SEPARATE NON-TABLE CONTENT PROCESSING
+function processNonTableContent(node, branding) {
+  const elements = [];
+  const tag = node.tagName?.toLowerCase();
+
+  if (/^h[1-6]$/.test(tag)) {
+    elements.push(new Paragraph({
+      heading: HeadingLevel[`HEADING_${tag[1]}`],
+      children: parseTextContent(node, branding),
+      spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+    }));
+  } else if (tag === 'p') {
+    elements.push(new Paragraph({
+      children: parseTextContent(node, branding),
+      spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+    }));
+  } else if (tag === 'br') {
+    elements.push(new Paragraph({ children: [] }));
+  } else if (tag === 'ul' || tag === 'ol') {
+    const listItems = node.querySelectorAll('li');
+    listItems.forEach((li, index) => {
+      const bullet = tag === 'ul' ? '• ' : `${index + 1}. `;
+      elements.push(new Paragraph({
+        children: [
+          new TextRun({ text: bullet }),
+          ...parseTextContent(li, branding)
+        ],
+        spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined
+      }));
+    });
+  } else if (tag === 'div') {
+    // Process div contents recursively, but skip tables
+    Array.from(node.childNodes).forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE && child.tagName?.toLowerCase() !== 'table') {
+        elements.push(...processNonTableContent(child, branding));
+      } else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
+        elements.push(new Paragraph({
+          children: [new TextRun({
+            text: child.textContent.trim(),
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+          })],
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        }));
+      }
+    });
+  } else {
+    // For other elements, extract text content
+    const textContent = node.textContent?.trim();
+    if (textContent) {
+      elements.push(new Paragraph({
+        children: parseTextContent(node, branding),
+        spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+      }));
+    }
+  }
+
+  return elements;
+}
+
+// HELPER FUNCTION FOR TEXT PARSING
+function parseTextContent(node, branding, styles = {}) {
+  const children = [];
+
+  node.childNodes.forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent;
+      if (text.trim()) {
+        children.push(new TextRun({
+          text,
+          bold: styles.bold,
+          italics: styles.italics,
+          underline: styles.underline,
+          color: DEBUG_FLAGS.renderCustomColors ? (styles.color || branding?.colors?.primary?.replace('#', '') || '000000') : '000000',
+          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+        }));
+      }
+    }
+
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const tag = child.tagName.toLowerCase();
+      const childStyles = { ...styles };
+
+      if (tag === 'strong' || tag === 'b') childStyles.bold = true;
+      if (tag === 'em' || tag === 'i') childStyles.italics = true;
+      if (tag === 'u') childStyles.underline = {};
+      if (tag === 'span' && child.style.color) childStyles.color = child.style.color.replace('#', '');
+
+      children.push(...parseTextContent(child, branding, childStyles));
+    }
+  });
+
+  return children;
 }
 
 export const exportToDocx = async (proposal, branding = {}) => {
+  // Expose to window for testing
+  if (typeof window !== 'undefined') {
+    window.exportToDocx = exportToDocx;
+  }
   console.log('DEBUG FLAGS:', DEBUG_FLAGS);
 
   const sections = [];
@@ -320,59 +901,96 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
     // Title Page (No header/footer)
     sections.push({
-      properties: {},
+      properties: {
+        page: {
+          verticalAlign: VerticalAlign.CENTER
+        }
+      },
       children: [...titleChildren, new Paragraph({ children: [], pageBreakAfter: true })]
     });
   }
 
   // Table of contents
   if (DEBUG_FLAGS.renderTableOfContents) {
-    const tocChildren = [
-      new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER,
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
-        children: [
-          new TextRun({
-            text: 'Table of Contents',
-            bold: true,
-            size: 32,
-            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
-          })
-        ]
-      })
-    ];
+    const tocSettings = branding?.tableOfContents || {};
+    const isEnabled = tocSettings.enabled !== false;
 
-    // Loop through sections and add manual TOC entries
-    proposal.sections.forEach((section, index) => {
-      tocChildren.push(
+    if (isEnabled) {
+      // Create manual TOC with proper styling that actually works
+      const tocChildren = [
         new Paragraph({
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined,
+          alignment: AlignmentType.CENTER,
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
           children: [
             new TextRun({
-              text: `${index + 1}. ${section.title}`,
-              size: 24,
+              text: 'Table of Contents',
+              bold: true,
+              size: 32,
               font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
             })
           ]
         })
-      );
-    });
+      ];
 
-    tocChildren.push(new Paragraph({ children: [], pageBreakAfter: true }));
+      // Generate manual TOC entries based on proposal sections
+      proposal.sections.forEach((section, index) => {
+        const pageNumber = index + 3; // Assuming title page + TOC page + content starts at page 3
 
-    sections.push({
-      properties: {},
-      children: tocChildren
-    });
+        // Create TOC entry with proper styling
+        const tocEntryChildren = [
+          new TextRun({
+            text: `${index + 1}. ${section.title}`,
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+          })
+        ];
+
+        // Add leaders (dots) and page numbers if enabled
+        if (tocSettings.showPageNumbers !== false) {
+          // Add tab with leader dots
+          tocEntryChildren.push(new TextRun({
+            text: '\t',
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+          }));
+
+          tocEntryChildren.push(new TextRun({
+            text: pageNumber.toString(),
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+          }));
+        }
+
+        tocChildren.push(new Paragraph({
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined,
+          tabStops: tocSettings.showPageNumbers !== false ? [
+            {
+              type: TabStopType.RIGHT,
+              position: TabStopPosition.MAX,
+              leader: LeaderType.DOT
+            }
+          ] : undefined,
+          children: tocEntryChildren
+        }));
+      });
+
+      tocChildren.push(new Paragraph({ children: [], pageBreakAfter: true }));
+
+      sections.push({
+        properties: {},
+        children: tocChildren
+      });
+    }
   }
 
   // Content Pages
   if (DEBUG_FLAGS.renderSections) {
     for (const section of proposal.sections) {
-      const watermark = await renderWatermarkImage(branding);
+      console.log(`\n🔍 PROCESSING SECTION: "${section.title}" (Type: ${section.type})`);
+      console.log('📄 Section content length:', section.content?.length || 0);
+      console.log('📄 Section content preview:', section.content?.substring(0, 300) || 'No content');
+
+      const watermark = await renderWatermark(branding);
       const contentChildren = [...watermark];
 
       contentChildren.push(new Paragraph({
@@ -387,8 +1005,92 @@ export const exportToDocx = async (proposal, branding = {}) => {
         })]
       }));
 
-      const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
-      contentChildren.push(...htmlParagraphs);
+      // Handle table sections with structured data
+      if (section.type === 'table' && section.tableData) {
+        console.log('🔍 ✅ STRUCTURED TABLE SECTION DETECTED');
+        console.log('📊 Table data:', section.tableData);
+
+        // Add table title if provided
+        if (section.tableTitle) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 100 } : undefined,
+            children: [new TextRun({
+              text: section.tableTitle,
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+        }
+
+        // Add table description if provided
+        if (section.tableDescription) {
+          contentChildren.push(new Paragraph({
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 100, after: 200 } : undefined,
+            children: [new TextRun({
+              text: section.tableDescription,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+        }
+
+        // Create table from structured data
+        const tableRows = section.tableData.map((row, rowIndex) => {
+          return new TableRow({
+            children: row.map((cell, cellIndex) => {
+              return new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({
+                      text: cell || '',
+                      bold: rowIndex === 0,
+                      font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+                      color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+                    })]
+                  })
+                ],
+                shading: rowIndex === 0 ? {
+                  fill: branding?.colors?.accent?.replace('#', '') || 'F5F5F5'
+                } : undefined,
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+                  bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+                  left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
+                  right: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
+                }
+              });
+            })
+          });
+        });
+
+        const table = new Table({
+          rows: tableRows,
+          width: {
+            size: 100,
+            type: WidthType.PERCENTAGE
+          },
+          margins: {
+            top: 300,
+            bottom: 300
+          }
+        });
+
+        contentChildren.push(table);
+        console.log('🔍 ✅ STRUCTURED TABLE SUCCESSFULLY ADDED');
+
+        // Add spacing after table
+        contentChildren.push(new Paragraph({
+          children: [],
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        }));
+      }
+      // Handle regular content sections
+      else if (section.content) {
+        const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
+        contentChildren.push(...htmlParagraphs);
+      }
 
       sections.push({
         properties: {},

@@ -369,6 +369,7 @@ const Sidebar = () => {
     setIsExporting(true);
     // setShowExportDropdown(false); // Commented out - no longer using dropdown
     try {
+      console.log(currentProposal, currentProposal.branding)
       await exportToDocx(currentProposal, currentProposal.branding);
     } catch (error) {
       console.error('DOCX Export failed:', error);

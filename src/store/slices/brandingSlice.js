@@ -74,13 +74,21 @@ const initialState = {
     },
     logo: null,
     watermark: {
+      type: 'image', // 'image' or 'text'
       image: null,
+      text: '',
       transparency: 0.3,
+      rotation: 0, // rotation angle in degrees
       processedImage: null // This will store the transparent version
     },
     companyName: 'Your Company Name',
     headerText: '',
-    footerText: ''
+    footerText: '',
+    tableOfContents: {
+      enabled: true,
+      showPageNumbers: true,
+      headingLevels: '1-3' // which heading levels to include
+    }
   },
 };
 
