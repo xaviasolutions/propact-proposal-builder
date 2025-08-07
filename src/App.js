@@ -114,27 +114,27 @@ function AppContent() {
 </ul>`, 
             order: 1 
           },
-          { 
-            id: uuidv4(), 
-            type: 'fees', 
-            title: 'Fees & Timeline', 
-            content: `<h2>Investment & Timeline</h2>
-<h3>Project Investment</h3>
-<table border="1" style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-<tr style="background-color: #f8f9fa;"><th style="padding: 10px; text-align: left;">Phase</th><th style="padding: 10px; text-align: left;">Duration</th><th style="padding: 10px; text-align: left;">Investment</th></tr>
-<tr><td style="padding: 10px;">Discovery & Planning</td><td style="padding: 10px;">2 weeks</td><td style="padding: 10px;">$15,000</td></tr>
-<tr><td style="padding: 10px;">Development & Implementation</td><td style="padding: 10px;">8 weeks</td><td style="padding: 10px;">$45,000</td></tr>
-<tr><td style="padding: 10px;">Deployment & Support</td><td style="padding: 10px;">2 weeks</td><td style="padding: 10px;">$10,000</td></tr>
-<tr style="background-color: #f8f9fa; font-weight: bold;"><td style="padding: 10px;">Total</td><td style="padding: 10px;">12 weeks</td><td style="padding: 10px;">$70,000</td></tr>
-</table>
-<h3>Payment Schedule</h3>
-<ul>
-<li>50% upon project commencement</li>
-<li>30% at development milestone completion</li>
-<li>20% upon final delivery and acceptance</li>
-</ul>`, 
-            order: 2 
-          },
+//           { 
+//             id: uuidv4(), 
+//             type: 'fees', 
+//             title: 'Fees & Timeline', 
+//             content: `<h2>Investment & Timeline</h2>
+// <h3>Project Investment</h3>
+// <table border="1" style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+// <tr style="background-color: #f8f9fa;"><th style="padding: 10px; text-align: left;">Phase</th><th style="padding: 10px; text-align: left;">Duration</th><th style="padding: 10px; text-align: left;">Investment</th></tr>
+// <tr><td style="padding: 10px;">Discovery & Planning</td><td style="padding: 10px;">2 weeks</td><td style="padding: 10px;">$15,000</td></tr>
+// <tr><td style="padding: 10px;">Development & Implementation</td><td style="padding: 10px;">8 weeks</td><td style="padding: 10px;">$45,000</td></tr>
+// <tr><td style="padding: 10px;">Deployment & Support</td><td style="padding: 10px;">2 weeks</td><td style="padding: 10px;">$10,000</td></tr>
+// <tr style="background-color: #f8f9fa; font-weight: bold;"><td style="padding: 10px;">Total</td><td style="padding: 10px;">12 weeks</td><td style="padding: 10px;">$70,000</td></tr>
+// </table>
+// <h3>Payment Schedule</h3>
+// <ul>
+// <li>50% upon project commencement</li>
+// <li>30% at development milestone completion</li>
+// <li>20% upon final delivery and acceptance</li>
+// </ul>`, 
+//             order: 2 
+//           },
           { 
             id: uuidv4(), 
             type: 'team', 

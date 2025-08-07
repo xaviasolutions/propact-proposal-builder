@@ -332,7 +332,7 @@ const Sidebar = () => {
             order: 0
           },
           { id: uuidv4(), type: 'scope', title: 'Scope of Work', content: '', order: 1 },
-          { id: uuidv4(), type: 'fees', title: 'Fees & Timeline', content: '', order: 2 },
+          // { id: uuidv4(), type: 'fees', title: 'Fees & Timeline', content: '', order: 2 },
           { id: uuidv4(), type: 'team', title: 'Our Team', content: '', order: 3 },
           { id: uuidv4(), type: 'cvs', title: 'Team CVs', content: '', order: 4 }
         ],

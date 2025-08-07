@@ -269,6 +269,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   ]);
   const [tableTitle, setTableTitle] = useState('');
   const [tableDescription, setTableDescription] = useState('');
+  const [tableNote, setTableNote] = useState('');
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
@@ -304,6 +305,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       }
       setTableTitle(section.tableTitle || '');
       setTableDescription(section.tableDescription || '');
+      setTableNote(section.tableNote || '');
     }
     
     // If this is a cover letter section, try to find the selected cover
@@ -343,7 +345,8 @@ const SectionEditor = ({ section, onUpdate }) => {
       selectedCoverId,
       tableData: type === 'table' ? tableData : section.tableData,
       tableTitle: type === 'table' ? tableTitle : section.tableTitle,
-      tableDescription: type === 'table' ? tableDescription : section.tableDescription
+      tableDescription: type === 'table' ? tableDescription : section.tableDescription,
+      tableNote: type === 'table' ? tableNote : section.tableNote
     });
     setHasChanges(false);
   };
@@ -544,7 +547,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const sectionTypes = [
     { value: 'cover', label: 'Cover Letter' },
     { value: 'scope', label: 'Scope of Work' },
-    { value: 'fees', label: 'Fees & Timeline' },
+    // { value: 'fees', label: 'Fees & Timeline' },
     { value: 'team', label: 'Our Team' },
     { value: 'cvs', label: 'Team CVs' },
     { value: 'case-study', label: 'Case Study' },
@@ -970,6 +973,30 @@ const SectionEditor = ({ section, onUpdate }) => {
               </table>
             </div>
           )}
+
+          {/* Table Note - Renders after table */}
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
+              Table Note (Optional)
+            </label>
+            <textarea
+              value={tableNote}
+              onChange={(e) => {
+                setTableNote(e.target.value);
+                setHasChanges(true);
+              }}
+              placeholder="Add any additional notes or explanations for this table..."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical'
+              }}
+            />
+          </div>
         </SelectorContainer>
       )}
 

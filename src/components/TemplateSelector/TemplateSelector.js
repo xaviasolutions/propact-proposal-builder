@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiX, FiCheck, FiPlus, FiFileText, FiUser, FiBriefcase } from 'react-icons/fi';
+import { FiX, FiCheck, FiPlus, FiFileText, FiUser, FiBriefcase, FiSearch } from 'react-icons/fi';
 import { useSelector, useDispatch } from 'react-redux';
 import { addClient } from '../../store/slices/clientsSlice';
 import CoverSelector from '../CoverSelector/CoverSelector';
@@ -104,6 +104,41 @@ const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  margin-bottom: 20px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+
+  &::placeholder {
+    color: #6c757d;
+  }
+`;
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  pointer-events: none;
 `;
 
 const TemplateGrid = styled.div`
@@ -460,6 +495,8 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
   const [selectedCover, setSelectedCover] = useState(null);
   const [showCoverSelector, setShowCoverSelector] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
+  const [templateSearchTerm, setTemplateSearchTerm] = useState('');
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [clientFormData, setClientFormData] = useState({
     name: '',
     company: '',
@@ -470,6 +507,18 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
   });
 
   if (!isOpen) return null;
+
+  // Filter templates based on search term
+  const filteredTemplates = brandingTemplates.filter(template =>
+    template.name.toLowerCase().includes(templateSearchTerm.toLowerCase())
+  );
+
+  // Filter clients based on search term
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    client.company.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+    client.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+  );
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
@@ -543,6 +592,8 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
     setSelectedCover(null);
     setShowCoverSelector(false);
     setShowClientForm(false);
+    setTemplateSearchTerm('');
+    setClientSearchTerm('');
     setClientFormData({
       name: '',
       company: '',
@@ -613,6 +664,19 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
           {currentStep === 1 && (
             <>
               <SectionTitle>Choose a Branding Template</SectionTitle>
+              
+              <SearchContainer>
+                <SearchIcon>
+                  <FiSearch size={16} />
+                </SearchIcon>
+                <SearchInput
+                  type="text"
+                  placeholder="Search templates..."
+                  value={templateSearchTerm}
+                  onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                />
+              </SearchContainer>
+              
               <TemplateGrid>
                 {/* Default Template */}
                 <DefaultTemplateCard
@@ -632,7 +696,7 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                 </DefaultTemplateCard>
 
                 {/* Saved Templates */}
-                {brandingTemplates.map(template => (
+                {filteredTemplates.map(template => (
                   <TemplateCard
                     key={template.id}
                     selected={selectedTemplate?.id === template.id}
@@ -665,6 +729,19 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                 ))}
               </TemplateGrid>
 
+              {filteredTemplates.length === 0 && brandingTemplates.length > 0 && templateSearchTerm && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: '#666', 
+                  padding: '20px',
+                  background: '#f8f9fa',
+                  borderRadius: '8px',
+                  marginBottom: '24px'
+                }}>
+                  <p>No templates found matching "{templateSearchTerm}". Try a different search term.</p>
+                </div>
+              )}
+
               {brandingTemplates.length === 0 && (
                 <div style={{ 
                   textAlign: 'center', 
@@ -688,8 +765,20 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
             <>
               <SectionTitle>
                 <FiUser size={18} />
-                Select Client for Proposal
+                Select a Client
               </SectionTitle>
+              
+              <SearchContainer>
+                <SearchIcon>
+                  <FiSearch size={16} />
+                </SearchIcon>
+                <SearchInput
+                  type="text"
+                  placeholder="Search clients by name, company, or email..."
+                  value={clientSearchTerm}
+                  onChange={(e) => setClientSearchTerm(e.target.value)}
+                />
+              </SearchContainer>
               
               <ClientSelectionSection>
                 <NewClientButton onClick={() => setShowClientForm(true)}>
@@ -700,9 +789,9 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                   </div>
                 </NewClientButton>
 
-                {clients.length > 0 ? (
+                {filteredClients.length > 0 ? (
                   <ClientGrid>
-                    {clients.map(client => (
+                    {filteredClients.map(client => (
                       <ClientCard
                         key={client.id}
                         selected={selectedClient?.id === client.id}
@@ -728,7 +817,12 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
                     borderRadius: '8px',
                     marginBottom: '24px'
                   }}>
-                    <p>No clients found. Create your first client to continue.</p>
+                    <p>
+                      {clientSearchTerm 
+                        ? `No clients found matching "${clientSearchTerm}". Try a different search term or create a new client.`
+                        : 'No clients found. Create your first client to continue.'
+                      }
+                    </p>
                   </div>
                 )}
               </ClientSelectionSection>

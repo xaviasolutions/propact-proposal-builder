@@ -429,6 +429,96 @@ const ProposalPreview = (props) => {
           </div>
         );
 
+      case 'table':
+        return (
+          <div>
+            {/* Table Title */}
+            {section.tableTitle && (
+              <h3 style={{ 
+                color: primaryColor, 
+                marginBottom: '10px',
+                fontFamily 
+              }}>
+                {section.tableTitle}
+              </h3>
+            )}
+            
+            {/* Table Description */}
+            {section.tableDescription && (
+              <p style={{ 
+                color: '#666', 
+                marginBottom: '20px',
+                fontFamily 
+              }}>
+                {section.tableDescription}
+              </p>
+            )}
+            
+            {/* Table Data */}
+            {section.tableData && section.tableData.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: primaryColor + '20' }}>
+                      {section.tableData[0]?.map((header, index) => (
+                        <th key={index} style={{
+                          padding: '12px',
+                          textAlign: 'left',
+                          borderBottom: '1px solid #ddd',
+                          fontWeight: 'bold',
+                          color: primaryColor,
+                          fontFamily
+                        }}>
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {section.tableData.slice(1).map((row, rowIndex) => (
+                      <tr key={rowIndex} style={{
+                        backgroundColor: rowIndex % 2 === 0 ? '#f9f9f9' : 'white'
+                      }}>
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex} style={{
+                            padding: '12px',
+                            borderBottom: '1px solid #ddd',
+                            fontFamily
+                          }}>
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {/* Table Note - Renders after table */}
+            {section.tableNote && (
+              <p style={{ 
+                color: '#666', 
+                fontStyle: 'italic',
+                marginTop: '15px',
+                padding: '10px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '4px',
+                border: '1px solid #e9ecef',
+                fontFamily 
+              }}>
+                {section.tableNote}
+              </p>
+            )}
+          </div>
+        );
+
       case 'page-break':
         return (
           <div style={{

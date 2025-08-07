@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiX, FiFileText, FiImage } from 'react-icons/fi';
+import { FiX, FiFileText, FiImage, FiSearch } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 
 const Overlay = styled.div`
@@ -71,6 +71,41 @@ const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  margin-bottom: 20px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+
+  &::placeholder {
+    color: #6c757d;
+  }
+`;
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  pointer-events: none;
 `;
 
 const CoverGrid = styled.div`
@@ -189,8 +224,18 @@ const EmptyState = styled.div`
 
 const CoverSelector = ({ isOpen, onClose, onSelect, selectedCover }) => {
   const { covers } = useSelector(state => state.covers);
+  const [searchTerm, setSearchTerm] = useState('');
 
   if (!isOpen) return null;
+
+  // Filter covers based on search term
+  const filteredCovers = covers.filter(cover =>
+    cover.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cover.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (cover.content && cover.content.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (cover.header && cover.header.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (cover.footer && cover.footer.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleCoverSelect = (cover) => {
     onSelect(cover);
@@ -200,12 +245,17 @@ const CoverSelector = ({ isOpen, onClose, onSelect, selectedCover }) => {
     onClose();
   };
 
+  const handleClose = () => {
+    setSearchTerm('');
+    onClose();
+  };
+
   return (
-    <Overlay onClick={onClose}>
+    <Overlay onClick={handleClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
           <ModalTitle>Select Cover Template</ModalTitle>
-          <CloseButton onClick={onClose}>
+          <CloseButton onClick={handleClose}>
             <FiX />
           </CloseButton>
         </ModalHeader>
@@ -216,13 +266,31 @@ const CoverSelector = ({ isOpen, onClose, onSelect, selectedCover }) => {
             Available Cover Templates
           </SectionTitle>
 
+          {covers.length > 0 && (
+            <SearchContainer>
+              <SearchIcon>
+                <FiSearch size={16} />
+              </SearchIcon>
+              <SearchInput
+                type="text"
+                placeholder="Search covers by name, category, or content..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </SearchContainer>
+          )}
+
           {covers.length === 0 ? (
             <EmptyState>
               No cover templates available. Create cover templates in the Content Manager first.
             </EmptyState>
+          ) : filteredCovers.length === 0 ? (
+            <EmptyState>
+              No covers found matching "{searchTerm}". Try a different search term.
+            </EmptyState>
           ) : (
             <CoverGrid>
-              {covers.map(cover => (
+              {filteredCovers.map(cover => (
                 <CoverCard
                   key={cover.id}
                   selected={selectedCover?.id === cover.id}
@@ -251,7 +319,7 @@ const CoverSelector = ({ isOpen, onClose, onSelect, selectedCover }) => {
         </ModalContent>
 
         <ModalActions>
-          <Button onClick={onClose}>
+          <Button onClick={handleClose}>
             Cancel
           </Button>
           <Button 

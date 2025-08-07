@@ -1081,6 +1081,19 @@ export const exportToDocx = async (proposal, branding = {}) => {
         contentChildren.push(table);
         console.log('🔍 ✅ STRUCTURED TABLE SUCCESSFULLY ADDED');
 
+        // Add table note if provided (renders after table)
+        if (section.tableNote) {
+          contentChildren.push(new Paragraph({
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+            children: [new TextRun({
+              text: section.tableNote,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000',
+              italics: true
+            })]
+          }));
+        }
+
         // Add spacing after table
         contentChildren.push(new Paragraph({
           children: [],
