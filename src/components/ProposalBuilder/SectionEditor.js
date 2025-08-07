@@ -1075,7 +1075,7 @@ const SectionEditor = ({ section, onUpdate }) => {
           </div>
 
           {/* Page Break Option */}
-          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+          {/* <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
             <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}>
               <input
                 type="checkbox"
@@ -1091,7 +1091,7 @@ const SectionEditor = ({ section, onUpdate }) => {
             <p style={{ margin: '4px 0 0 24px', fontSize: '12px', color: '#666' }}>
               When enabled, the content after this table will start on a new page in the exported document.
             </p>
-          </div>
+          </div> */}
         </SelectorContainer>
       )}
 
