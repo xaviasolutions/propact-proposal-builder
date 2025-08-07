@@ -286,9 +286,9 @@ function createTextWatermarkImage(text, options = {}) {
     canvas.width = canvasSize;
     canvas.height = canvasSize;
 
-    // Calculate opacity from transparency (transparency is 0-1, where 0 = opaque, 1 = transparent)
-    // Use transparency directly to match image watermark behavior
-    const opacity = Math.max(0.05, Math.min(0.95, transparency));
+    // Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
+    // Convert transparency to opacity: opacity = 1 - transparency
+    const opacity = Math.max(0.05, Math.min(0.95, 1 - transparency));
 
     console.log('Transparency calculation:', { transparency, opacity });
 
@@ -303,9 +303,10 @@ function createTextWatermarkImage(text, options = {}) {
     ctx.textBaseline = 'middle';
 
     // Convert hex color to rgba
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
+    const hexColor = color.startsWith('#') ? color : `#${color}`;
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
     ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
 
     // Save context for rotation
@@ -315,8 +316,8 @@ function createTextWatermarkImage(text, options = {}) {
     ctx.translate(canvasSize / 2, canvasSize / 2);
     ctx.rotate((rotation * Math.PI) / 180);
 
-    // Draw the text
-    ctx.fillText(text.toUpperCase(), 0, 0);
+    // Draw the text (preserve original case - don't force uppercase)
+    ctx.fillText(text, 0, 0);
 
     // Restore context
     ctx.restore();
