@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar/Sidebar';
 import ProposalBuilder from './components/ProposalBuilder/ProposalBuilder';
 import ContentManager from './components/ContentManager/ContentManager';
 import BrandingTemplates from './components/BrandingTemplates/BrandingTemplates';
+import GlobalSearch from './components/GlobalSearch/GlobalSearch';
 import { useDispatch, useSelector } from 'react-redux';
 import { setProposals, setCurrentProposal } from './store/slices/proposalsSlice';
 import { v4 as uuidv4 } from 'uuid';
@@ -51,6 +52,15 @@ const ContentArea = styled.div`
   flex: 1;
   overflow: auto;
   padding: 20px;
+`;
+
+const SearchArea = styled.div`
+  background: white;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 `;
 
 // Main App Content Component
@@ -194,6 +204,34 @@ function AppContent() {
     { id: 'branding', label: 'Branding & Templates' }
   ];
 
+  const handleSearchResult = (result) => {
+    console.log('Search result clicked:', result);
+    
+    // Navigate to appropriate tab based on result type
+    switch (result.type) {
+      case 'proposal':
+      case 'proposal-section':
+        setActiveTab('builder');
+        if (result.data.proposal) {
+          dispatch(setCurrentProposal(result.data.proposal));
+        } else if (result.data) {
+          dispatch(setCurrentProposal(result.data));
+        }
+        break;
+      case 'client':
+      case 'caseStudy':
+      case 'service':
+      case 'teamMember':
+        setActiveTab('content');
+        break;
+      case 'branding':
+        setActiveTab('branding');
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'builder':
@@ -222,6 +260,9 @@ function AppContent() {
             </Tab>
           ))}
         </TabContainer>
+        <SearchArea>
+          <GlobalSearch onResultClick={handleSearchResult} />
+        </SearchArea>
         <ContentArea>
           {renderActiveTab()}
         </ContentArea>
