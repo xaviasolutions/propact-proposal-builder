@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { FiSave, FiType, FiFileText, FiUsers, FiBriefcase, FiTable, FiStar, FiMinus } from 'react-icons/fi';
+import { FiType, FiFileText, FiUsers, FiBriefcase, FiTable, FiStar, FiMinus, FiSave } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 
 const EditorContainer = styled.div`
@@ -259,6 +259,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
   const [selectedCaseStudies, setSelectedCaseStudies] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
+  const [selectedPreSavedContent, setSelectedPreSavedContent] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Table-specific state
@@ -270,6 +271,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [tableTitle, setTableTitle] = useState('');
   const [tableDescription, setTableDescription] = useState('');
   const [tableNote, setTableNote] = useState('');
+  const [tablePageBreak, setTablePageBreak] = useState(true); // Default to true
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
@@ -277,6 +279,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const services = useSelector(state => state.services.services);
   const clients = useSelector(state => state.clients.clients);
   const currentProposal = useSelector(state => state.proposals.currentProposal);
+  const preSavedContent = useSelector(state => state.preSavedContent?.items || []);
 
   useEffect(() => {
     setTitle(section.title);
@@ -306,6 +309,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       setTableTitle(section.tableTitle || '');
       setTableDescription(section.tableDescription || '');
       setTableNote(section.tableNote || '');
+      setTablePageBreak(section.tablePageBreak !== undefined ? section.tablePageBreak : true);
     }
     
     // If this is a cover letter section, try to find the selected cover
@@ -346,7 +350,8 @@ const SectionEditor = ({ section, onUpdate }) => {
       tableData: type === 'table' ? tableData : section.tableData,
       tableTitle: type === 'table' ? tableTitle : section.tableTitle,
       tableDescription: type === 'table' ? tableDescription : section.tableDescription,
-      tableNote: type === 'table' ? tableNote : section.tableNote
+      tableNote: type === 'table' ? tableNote : section.tableNote,
+      tablePageBreak: type === 'table' ? tablePageBreak : section.tablePageBreak
     });
     setHasChanges(false);
   };
@@ -517,6 +522,24 @@ const SectionEditor = ({ section, onUpdate }) => {
     return serviceContent;
   };
 
+  const generatePreSavedContent = () => {
+    if (selectedPreSavedContent.length === 0) return '';
+    
+    let preSavedContentHtml = '';
+    selectedPreSavedContent.forEach(contentId => {
+      const contentItem = preSavedContent.find(item => item.id === contentId);
+      if (contentItem) {
+        preSavedContentHtml += `
+          <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <h4>${contentItem.title}</h4>
+            <div style="margin-top: 12px;">${contentItem.content}</div>
+          </div>
+        `;
+      }
+    });
+    return preSavedContentHtml;
+  };
+
   const handleTitleChange = (e) => {
     setTitle(e.target.value);
     setHasChanges(true);
@@ -553,6 +576,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'case-study', label: 'Case Study' },
     { value: 'services', label: 'Services' },
     { value: 'table', label: 'Table Section' },
+
     // { value: 'testimonials', label: 'Testimonials' },
     // { value: 'page-break', label: 'Page Break' },
     { value: 'custom', label: 'Custom Section' }
@@ -779,6 +803,42 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
+      {/* Pre-saved Content Selection */}
+      {/* <SelectorContainer>
+        <SelectorTitle>
+          <FiSave />
+          Pre-saved Content Selection
+        </SelectorTitle>
+        <ItemGrid>
+          {preSavedContent && preSavedContent.map(contentItem => (
+            <ItemCard
+              key={contentItem.id}
+              className={selectedPreSavedContent.includes(contentItem.id) ? 'selected' : ''}
+              onClick={() => {
+                const newSelection = selectedPreSavedContent.includes(contentItem.id)
+                  ? selectedPreSavedContent.filter(id => id !== contentItem.id)
+                  : [...selectedPreSavedContent, contentItem.id];
+                setSelectedPreSavedContent(newSelection);
+                setHasChanges(true);
+              }}
+            >
+              <ItemTitle>{contentItem.title}</ItemTitle>
+              <ItemSubtitle>{contentItem.category || 'Content'}</ItemSubtitle>
+              <ItemPreview>{contentItem.content.substring(0, 100)}...</ItemPreview>
+            </ItemCard>
+          ))}
+        </ItemGrid>
+        {selectedPreSavedContent.length > 0 && (
+          <TableButton onClick={() => {
+            const preSavedContentHtml = generatePreSavedContent();
+            setContent(content + preSavedContentHtml);
+            setHasChanges(true);
+          }}>
+            Insert Selected Pre-saved Content
+          </TableButton>
+        )}
+      </SelectorContainer> */}
+
       {/* Page Break Section */}
       {type === 'page-break' && (
         <SelectorContainer>
@@ -845,27 +905,35 @@ const SectionEditor = ({ section, onUpdate }) => {
             />
           </div>
 
-          {/* Table Description */}
+          {/* Table Introduction */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
-              Table Description (Optional)
+              Table Introduction (Optional)
             </label>
-            <textarea
+            <ReactQuill
               value={tableDescription}
-              onChange={(e) => {
-                setTableDescription(e.target.value);
+              onChange={(value) => {
+                setTableDescription(value);
                 setHasChanges(true);
               }}
-              placeholder="Describe what this table shows..."
-              rows={3}
+              placeholder="Add introduction text before the table (e.g., timeline explanation)..."
               style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                resize: 'vertical'
+                backgroundColor: 'white',
+                borderRadius: '4px'
               }}
+              modules={{
+                toolbar: [
+                  ['bold', 'italic', 'underline'],
+                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                  ['link'],
+                  ['clean']
+                ]
+              }}
+              formats={[
+                'bold', 'italic', 'underline',
+                'list', 'bullet',
+                'link'
+              ]}
             />
           </div>
 
@@ -974,28 +1042,55 @@ const SectionEditor = ({ section, onUpdate }) => {
             </div>
           )}
 
-          {/* Table Note - Renders after table */}
+          {/* Table Summary - Renders after table */}
           <div style={{ marginTop: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
-              Table Note (Optional)
+              Table Summary (Optional)
             </label>
-            <textarea
+            <ReactQuill
               value={tableNote}
-              onChange={(e) => {
-                setTableNote(e.target.value);
+              onChange={(value) => {
+                setTableNote(value);
                 setHasChanges(true);
               }}
-              placeholder="Add any additional notes or explanations for this table..."
-              rows={3}
+              placeholder="Add summary or explanation after the table (e.g., key takeaways, next steps)..."
               style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                resize: 'vertical'
+                backgroundColor: 'white',
+                borderRadius: '4px'
               }}
+              modules={{
+                toolbar: [
+                  ['bold', 'italic', 'underline'],
+                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                  ['link'],
+                  ['clean']
+                ]
+              }}
+              formats={[
+                'bold', 'italic', 'underline',
+                'list', 'bullet',
+                'link'
+              ]}
             />
+          </div>
+
+          {/* Page Break Option */}
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}>
+              <input
+                type="checkbox"
+                checked={tablePageBreak}
+                onChange={(e) => {
+                  setTablePageBreak(e.target.checked);
+                  setHasChanges(true);
+                }}
+                style={{ marginRight: '8px' }}
+              />
+              Add page break after table
+            </label>
+            <p style={{ margin: '4px 0 0 24px', fontSize: '12px', color: '#666' }}>
+              When enabled, the content after this table will start on a new page in the exported document.
+            </p>
           </div>
         </SelectorContainer>
       )}

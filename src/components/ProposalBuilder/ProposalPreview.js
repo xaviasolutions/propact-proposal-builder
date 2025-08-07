@@ -443,15 +443,12 @@ const ProposalPreview = (props) => {
               </h3>
             )}
             
-            {/* Table Description */}
+            {/* Table Introduction */}
             {section.tableDescription && (
-              <p style={{ 
-                color: '#666', 
+              <div style={{ 
                 marginBottom: '20px',
                 fontFamily 
-              }}>
-                {section.tableDescription}
-              </p>
+              }} dangerouslySetInnerHTML={{ __html: section.tableDescription }} />
             )}
             
             {/* Table Data */}
@@ -501,20 +498,16 @@ const ProposalPreview = (props) => {
               </div>
             )}
             
-            {/* Table Note - Renders after table */}
+            {/* Table Summary - Renders after table */}
             {section.tableNote && (
-              <p style={{ 
-                color: '#666', 
-                fontStyle: 'italic',
+              <div style={{ 
                 marginTop: '15px',
                 padding: '10px',
                 backgroundColor: '#f8f9fa',
                 borderRadius: '4px',
                 border: '1px solid #e9ecef',
                 fontFamily 
-              }}>
-                {section.tableNote}
-              </p>
+              }} dangerouslySetInnerHTML={{ __html: section.tableNote }} />
             )}
           </div>
         );
@@ -546,7 +539,7 @@ const ProposalPreview = (props) => {
   };
 
   return (
-    <PreviewContainer data-testid="proposal-preview">
+    <PreviewContainer className="proposal-preview" data-testid="proposal-preview">
       {branding?.watermark && (
         <Watermark>
           {branding.watermark}

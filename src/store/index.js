@@ -11,6 +11,8 @@ import servicesReducer from './slices/servicesSlice';
 import teamMembersReducer from './slices/teamMembersSlice';
 import brandingReducer from './slices/brandingSlice';
 import coversReducer from './slices/coversSlice';
+import preSavedContentReducer from './slices/preSavedContentSlice';
+
 
 // Combine all reducers
 const rootReducer = combineReducers({
@@ -21,6 +23,8 @@ const rootReducer = combineReducers({
   teamMembers: teamMembersReducer,
   branding: brandingReducer,
   covers: coversReducer,
+  preSavedContent: preSavedContentReducer,
+
 });
 
 // Redux Persist configuration

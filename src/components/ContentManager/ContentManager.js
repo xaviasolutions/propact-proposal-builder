@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiUsers, FiBriefcase, FiStar, FiUser, FiFileText } from 'react-icons/fi';
+import { FiUsers, FiBriefcase, FiStar, FiUser, FiFileText, FiSave } from 'react-icons/fi';
 import ClientManager from './ClientManager';
 import CaseStudyManager from './CaseStudyManager';
 import ServiceManager from './ServiceManager';
 import TeamManager from './TeamManager';
 import CoverManager from './CoverManager';
+import PreSavedContentManager from './PreSavedContentManager';
+
 
 const ContentContainer = styled.div`
   display: flex;
@@ -58,7 +60,8 @@ const ContentManager = () => {
     { id: 'case-studies', label: 'Case Studies', icon: FiBriefcase },
     { id: 'services', label: 'Services', icon: FiStar },
     { id: 'team', label: 'Team Members', icon: FiUser },
-    { id: 'covers', label: 'Cover Templates', icon: FiFileText }
+    { id: 'covers', label: 'Cover Pages', icon: FiFileText },
+    // { id: 'pre-saved', label: 'Pre-saved Content', icon: FiSave },
   ];
 
   const renderActiveTab = () => {
@@ -73,6 +76,8 @@ const ContentManager = () => {
         return <TeamManager />;
       case 'covers':
         return <CoverManager />;
+      case 'pre-saved':
+        return <PreSavedContentManager />;
       default:
         return <ClientManager />;
     }

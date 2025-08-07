@@ -35,6 +35,65 @@ code {
   border-right: 1px solid #ccc;
 }
 
+/* ReactQuill content styling */
+.ql-editor a,
+div[dangerouslySetInnerHTML] a {
+  color: #007bff !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.ql-editor a:hover,
+div[dangerouslySetInnerHTML] a:hover {
+  color: #0056b3 !important;
+  text-decoration: underline !important;
+}
+
+.ql-editor a:visited,
+div[dangerouslySetInnerHTML] a:visited {
+  color: #6f42c1 !important;
+}
+
+/* Ensure links work in preview mode */
+.proposal-preview a {
+  color: #007bff !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.proposal-preview a:hover {
+  color: #0056b3 !important;
+}
+
+/* Ensure ReactQuill content preserves all formatting */
+div[dangerouslySetInnerHTML] {
+  line-height: 1.5;
+}
+
+div[dangerouslySetInnerHTML] p {
+  margin-bottom: 8px;
+}
+
+div[dangerouslySetInnerHTML] ul,
+div[dangerouslySetInnerHTML] ol {
+  margin-left: 20px;
+  margin-bottom: 8px;
+}
+
+div[dangerouslySetInnerHTML] strong {
+  font-weight: bold;
+}
+
+div[dangerouslySetInnerHTML] em {
+  font-style: italic;
+}
+
+div[dangerouslySetInnerHTML] u {
+  text-decoration: underline;
+}
+
 /* Drag and Drop Styles */
 .dragging {
   opacity: 0.5;

@@ -1025,16 +1025,23 @@ export const exportToDocx = async (proposal, branding = {}) => {
           }));
         }
 
-        // Add table description if provided
+        // Add table introduction if provided (ReactQuill content)
         if (section.tableDescription) {
-          contentChildren.push(new Paragraph({
-            spacing: DEBUG_FLAGS.renderSpacing ? { before: 100, after: 200 } : undefined,
-            children: [new TextRun({
-              text: section.tableDescription,
-              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
-            })]
-          }));
+          // Convert ReactQuill HTML to plain text for DOCX
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = section.tableDescription;
+          const plainText = tempDiv.textContent || tempDiv.innerText || '';
+          
+          if (plainText.trim()) {
+            contentChildren.push(new Paragraph({
+              spacing: DEBUG_FLAGS.renderSpacing ? { before: 100, after: 200 } : undefined,
+              children: [new TextRun({
+                text: plainText,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+                color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+              })]
+            }));
+          }
         }
 
         // Create table from structured data
@@ -1081,24 +1088,38 @@ export const exportToDocx = async (proposal, branding = {}) => {
         contentChildren.push(table);
         console.log('🔍 ✅ STRUCTURED TABLE SUCCESSFULLY ADDED');
 
-        // Add table note if provided (renders after table)
+        // Add table summary if provided (renders after table) - ReactQuill content
         if (section.tableNote) {
-          contentChildren.push(new Paragraph({
-            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
-            children: [new TextRun({
-              text: section.tableNote,
-              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000',
-              italics: true
-            })]
-          }));
+          // Convert ReactQuill HTML to plain text for DOCX
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = section.tableNote;
+          const plainText = tempDiv.textContent || tempDiv.innerText || '';
+          
+          if (plainText.trim()) {
+            contentChildren.push(new Paragraph({
+               spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+               children: [new TextRun({
+                 text: plainText,
+                 font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+                 color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+               })]
+             }));
+          }
         }
 
-        // Add spacing after table
-        contentChildren.push(new Paragraph({
-          children: [],
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
-        }));
+        // Add page break if enabled
+        if (section.tablePageBreak !== false) {
+          contentChildren.push(new Paragraph({
+            children: [],
+            pageBreakAfter: true
+          }));
+        } else {
+          // Add spacing after table if no page break
+          contentChildren.push(new Paragraph({
+            children: [],
+            spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+          }));
+        }
       }
       // Handle regular content sections
       else if (section.content) {
