@@ -8,7 +8,7 @@ import {
 import { useSelector, useDispatch } from 'react-redux';
 import { addProposal, setCurrentProposal, deleteProposal, updateProposal } from '../../store/slices/proposalsSlice';
 import { v4 as uuidv4 } from 'uuid';
-import { exportToDocx } from '../../utils/docxExporter2';
+import { exportToDocx } from '../../utils/docxExporter';
 // import { exportToPDF } from '../../utils/pdfExporter';
 import TemplateSelector from '../TemplateSelector/TemplateSelector';
 

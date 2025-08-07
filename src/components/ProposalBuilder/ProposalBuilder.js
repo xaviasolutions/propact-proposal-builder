@@ -7,7 +7,6 @@ import { updateProposal } from '../../store/slices/proposalsSlice';
 import SectionEditor from './SectionEditor';
 import ProposalPreview from './ProposalPreview';
 import { v4 as uuidv4 } from 'uuid';
-// import { exportToDocx } from '../../utils/docxExporter2';
 
 const BuilderContainer = styled.div`
   display: flex;
