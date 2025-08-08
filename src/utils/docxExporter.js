@@ -200,20 +200,14 @@ function renderFooter(branding) {
 }
 
 async function renderWatermarkImage(branding) {
-  console.log('renderWatermarkImage called');
-  console.log('DEBUG_FLAGS.renderWatermark:', DEBUG_FLAGS.renderWatermark);
-  console.log('DEBUG_FLAGS.renderImages:', DEBUG_FLAGS.renderImages);
 
   if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) {
-    console.log('Watermark or images disabled by debug flags');
     return [];
   }
 
   const watermark = branding?.watermark;
   const image = watermark?.processedImage || watermark?.image;
-  console.log('Image data found:', !!image);
-  console.log('Image valid:', isValidImageData(image));
-
+  
   if (!image || !isValidImageData(image)) {
     console.warn('Invalid or missing watermark image data');
     return [];
@@ -264,7 +258,6 @@ async function renderWatermarkImage(branding) {
 
 // Function to convert text to PNG image
 function createTextWatermarkImage(text, options = {}) {
-  console.log('Creating text watermark image for:', text);
 
   const {
     fontSize = 48,
@@ -289,8 +282,6 @@ function createTextWatermarkImage(text, options = {}) {
     // Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
     // Convert transparency to opacity: opacity = 1 - transparency
     const opacity = Math.max(0.05, Math.min(0.95, 1 - transparency));
-
-    console.log('Transparency calculation:', { transparency, opacity });
 
     // Set font properties
     let fontStyle = '';
@@ -324,7 +315,6 @@ function createTextWatermarkImage(text, options = {}) {
 
     // Convert canvas to data URL
     const dataUrl = canvas.toDataURL('image/png');
-    console.log('Text watermark image created successfully');
 
     return dataUrl;
   } catch (err) {
@@ -334,21 +324,15 @@ function createTextWatermarkImage(text, options = {}) {
 }
 
 async function renderWatermarkText(branding) {
-  console.log('renderWatermarkText called');
-  console.log('DEBUG_FLAGS.renderWatermark:', DEBUG_FLAGS.renderWatermark);
-
+  
   if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) {
-    console.log('Watermark or images disabled by debug flags');
     return [];
   }
 
   const watermark = branding?.watermark;
   const text = watermark?.text;
-  console.log('Text watermark content:', text);
-  console.log('Full watermark object:', watermark);
-
+  
   if (!text || typeof text !== 'string' || text.trim() === '') {
-    console.log('No valid text content for watermark');
     return [];
   }
 
@@ -359,15 +343,6 @@ async function renderWatermarkText(branding) {
     const transparency = watermark?.transparency || 0.3;
     const rotation = watermark?.rotation || 0;
     const fontFamily = branding?.fonts?.primary || 'Arial';
-
-    console.log('Text watermark properties:', {
-      text,
-      fontSize,
-      color,
-      transparency,
-      rotation,
-      fontFamily
-    });
 
     // Create PNG image from text
     const textImageDataUrl = createTextWatermarkImage(text, {
@@ -418,7 +393,6 @@ async function renderWatermarkText(branding) {
       }
     });
 
-    console.log('Text watermark image created successfully');
     return [new Paragraph({ children: [watermarkImage] })];
   } catch (err) {
     console.warn('Watermark text render failed:', err);
@@ -427,43 +401,30 @@ async function renderWatermarkText(branding) {
 }
 
 async function renderWatermark(branding) {
-  console.log('renderWatermark called with branding:', branding);
   const watermark = branding?.watermark;
-  console.log('Watermark object:', watermark);
 
   if (!watermark) {
-    console.log('No watermark found in branding');
     return [];
   }
 
   // Check watermark type and content
   if (watermark.type === 'image' && watermark.image) {
-    console.log('Rendering image watermark');
     return await renderWatermarkImage(branding);
   } else if (watermark.type === 'text' && watermark.text && watermark.text.trim() !== '') {
-    console.log('Rendering text watermark');
     return renderWatermarkText(branding);
   }
 
-  console.log('No valid watermark content found');
   return []; // No watermark
 }
 
 function convertHtmlToDocxParagraphs(html, branding) {
-  console.log('=== SEPARATE TABLE PROCESSING MECHANISM ===');
-  console.log('🔍 Input HTML length:', html?.length || 0);
-  console.log('🔍 Input HTML preview:', html?.substring(0, 200) || 'No HTML content');
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const body = doc.body;
 
-  console.log('📄 Parsed body innerHTML:', body?.innerHTML || 'No body content');
-  console.log('📄 Body children count:', body?.children?.length || 0);
-
   // Check for tables in the entire document
   const allTables = doc.querySelectorAll('table');
-  console.log('🔍 TOTAL TABLES FOUND IN DOCUMENT:', allTables.length);
 
   if (allTables.length > 0) {
     allTables.forEach((table, index) => {
@@ -479,15 +440,11 @@ function convertHtmlToDocxParagraphs(html, branding) {
 
   // STEP 2: Process each child node and mark table positions
   function mapContent(parentNode) {
-    console.log('🔍 Mapping content from:', parentNode.tagName || 'TEXT_NODE');
-    console.log('🔍 Child nodes count:', parentNode.childNodes?.length || 0);
 
     Array.from(parentNode.childNodes).forEach((node, nodeIndex) => {
-      console.log(`🔍 Processing node ${nodeIndex + 1}:`, node.nodeType, node.tagName || 'TEXT');
 
       if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName?.toLowerCase();
-        console.log(`🏷️ Element tag: ${tag}`);
 
         if (tag === 'table') {
           // Mark table position
@@ -497,13 +454,10 @@ function convertHtmlToDocxParagraphs(html, branding) {
             node: node,
             processed: false
           });
-          console.log('🔍 ✅ TABLE DETECTED at position:', elementIndex - 1);
-          console.log('📊 Table HTML:', node.outerHTML.substring(0, 200) + '...');
         } else {
           // Check if this element contains tables
           const nestedTables = node.querySelectorAll('table');
           if (nestedTables.length > 0) {
-            console.log(`🔍 Found ${nestedTables.length} nested tables in ${tag} element`);
             // Process nested content recursively
             mapContent(node);
           } else {
@@ -514,7 +468,6 @@ function convertHtmlToDocxParagraphs(html, branding) {
               node: node,
               processed: false
             });
-            console.log(`📝 Content element: ${tag} at position:`, elementIndex - 1);
           }
         }
       } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
@@ -525,25 +478,19 @@ function convertHtmlToDocxParagraphs(html, branding) {
           node: node,
           processed: false
         });
-        console.log('📄 Text content at position:', elementIndex - 1, ':', node.textContent.trim().substring(0, 50));
       }
     });
   }
 
   mapContent(body);
-  console.log('📋 Content map created with', contentMap.length, 'items');
-  console.log('📋 Content map summary:', contentMap.map(item => `${item.type}(${item.index})`).join(', '));
 
   // STEP 3: Process content in sequence
   contentMap.forEach((item) => {
     if (item.type === 'table') {
-      console.log('🔧 PROCESSING TABLE at position:', item.index);
       const table = createDocxTable(item.node, branding);
       if (table) {
         elements.push(table);
-        console.log('✅ TABLE SUCCESSFULLY ADDED');
       } else {
-        console.log('❌ TABLE CREATION FAILED');
         // Add fallback text
         const textContent = item.node.textContent?.trim();
         if (textContent) {
@@ -554,11 +501,9 @@ function convertHtmlToDocxParagraphs(html, branding) {
         }
       }
     } else if (item.type === 'content') {
-      console.log('📝 PROCESSING CONTENT at position:', item.index);
       const contentElements = processNonTableContent(item.node, branding);
       elements.push(...contentElements);
     } else if (item.type === 'text') {
-      console.log('📄 PROCESSING TEXT at position:', item.index);
       const text = item.node.textContent?.trim();
       if (text) {
         elements.push(new Paragraph({
@@ -573,99 +518,8 @@ function convertHtmlToDocxParagraphs(html, branding) {
     }
   });
 
-  console.log('🎯 FINAL ELEMENTS COUNT:', elements.length);
   return elements;
 }
-
-// SEPARATE TABLE CREATION FUNCTION
-// function createDocxTable(tableNode, branding) {
-//   try {
-//     console.log('🔨 Creating DOCX table...');
-
-//     const rows = [];
-//     const tableRows = tableNode.querySelectorAll('tr');
-
-//     console.log('📊 Table has', tableRows.length, 'rows');
-
-//     if (tableRows.length === 0) {
-//       console.log('⚠️ No rows found in table');
-//       return null;
-//     }
-
-//     tableRows.forEach((rowNode, rowIndex) => {
-//       const cellNodes = rowNode.querySelectorAll('td, th');
-//       console.log(`📋 Row ${rowIndex + 1} has ${cellNodes.length} cells`);
-
-//       if (cellNodes.length === 0) return;
-
-//       // Determine if header row
-//       const isHeaderRow = rowNode.closest('thead') !== null ||
-//         cellNodes[0].tagName.toLowerCase() === 'th' ||
-//         (rowIndex === 0 && !rowNode.closest('tbody'));
-
-//       console.log(`📋 Row ${rowIndex + 1} is ${isHeaderRow ? 'HEADER' : 'DATA'} row`);
-
-//       const cells = [];
-//       cellNodes.forEach((cellNode, cellIndex) => {
-//         const cellText = cellNode.textContent?.trim() || ' ';
-//         console.log(`  📝 Cell ${cellIndex + 1}: "${cellText}"`);
-
-//         cells.push(new TableCell({
-//           children: [new Paragraph({
-//             children: [new TextRun({
-//               text: cellText,
-//               bold: isHeaderRow,
-//               font: branding?.fonts?.primary || 'Arial',
-//               color: branding?.colors?.primary?.replace('#', '') || '000000'
-//             })],
-//             alignment: AlignmentType.LEFT
-//           })],
-//           margins: {
-//             top: 150,
-//             bottom: 150,
-//             left: 150,
-//             right: 150
-//           },
-//           shading: isHeaderRow ? {
-//             fill: branding?.colors?.accent?.replace('#', '') || 'f0f0f0'
-//           } : undefined,
-//           borders: {
-//             top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-//             bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-//             left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-//             right: { style: BorderStyle.SINGLE, size: 1, color: '000000' }
-//           }
-//         }));
-//       });
-
-//       if (cells.length > 0) {
-//         rows.push(new TableRow({ children: cells }));
-//       }
-//     });
-
-//     if (rows.length > 0) {
-//       console.log('✅ Table created successfully with', rows.length, 'rows');
-//       return new Table({
-//         rows: rows,
-//         width: {
-//           size: 12240,
-//           type: WidthType.DXA
-//         },
-//         margins: {
-//           top: 300,
-//           bottom: 300
-//         }
-//       });
-//     }
-
-//     console.log('❌ No valid rows created');
-//     return null;
-
-//   } catch (error) {
-//     console.error('💥 Table creation error:', error);
-//     return null;
-//   }
-// }
 
 function createDocxTable(tableNode, branding) {
   try {
@@ -853,7 +707,6 @@ export const exportToDocx = async (proposal, branding = {}) => {
   if (typeof window !== 'undefined') {
     window.exportToDocx = exportToDocx;
   }
-  console.log('DEBUG FLAGS:', DEBUG_FLAGS);
 
   const sections = [];
 
@@ -987,10 +840,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
   // Content Pages
   if (DEBUG_FLAGS.renderSections) {
     for (const section of proposal.sections) {
-      console.log(`\n🔍 PROCESSING SECTION: "${section.title}" (Type: ${section.type})`);
-      console.log('📄 Section content length:', section.content?.length || 0);
-      console.log('📄 Section content preview:', section.content?.substring(0, 300) || 'No content');
-
+ 
       const watermark = await renderWatermark(branding);
       const contentChildren = [...watermark];
 
@@ -1008,9 +858,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
-        console.log('🔍 ✅ STRUCTURED TABLE SECTION DETECTED');
-        console.log('📊 Table data:', section.tableData);
-
+        
         // Add table title if provided
         if (section.tableTitle) {
           contentChildren.push(new Paragraph({
@@ -1086,7 +934,6 @@ export const exportToDocx = async (proposal, branding = {}) => {
         });
 
         contentChildren.push(table);
-        console.log('🔍 ✅ STRUCTURED TABLE SUCCESSFULLY ADDED');
 
         // Add table summary if provided (renders after table) - ReactQuill content
         if (section.tableNote) {
