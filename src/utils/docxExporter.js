@@ -207,7 +207,7 @@ async function renderWatermarkImage(branding) {
 
   const watermark = branding?.watermark;
   const image = watermark?.processedImage || watermark?.image;
-  
+
   if (!image || !isValidImageData(image)) {
     console.warn('Invalid or missing watermark image data');
     return [];
@@ -324,14 +324,14 @@ function createTextWatermarkImage(text, options = {}) {
 }
 
 async function renderWatermarkText(branding) {
-  
+
   if (!DEBUG_FLAGS.renderWatermark || !DEBUG_FLAGS.renderImages) {
     return [];
   }
 
   const watermark = branding?.watermark;
   const text = watermark?.text;
-  
+
   if (!text || typeof text !== 'string' || text.trim() === '') {
     return [];
   }
@@ -840,7 +840,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
   // Content Pages
   if (DEBUG_FLAGS.renderSections) {
     for (const section of proposal.sections) {
- 
+
       const watermark = await renderWatermark(branding);
       const contentChildren = [...watermark];
 
@@ -858,7 +858,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
-        
+
         // Add table title if provided
         if (section.tableTitle) {
           contentChildren.push(new Paragraph({
@@ -879,7 +879,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = section.tableDescription;
           const plainText = tempDiv.textContent || tempDiv.innerText || '';
-          
+
           if (plainText.trim()) {
             contentChildren.push(new Paragraph({
               spacing: DEBUG_FLAGS.renderSpacing ? { before: 100, after: 200 } : undefined,
@@ -941,16 +941,16 @@ export const exportToDocx = async (proposal, branding = {}) => {
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = section.tableNote;
           const plainText = tempDiv.textContent || tempDiv.innerText || '';
-          
+
           if (plainText.trim()) {
             contentChildren.push(new Paragraph({
-               spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
-               children: [new TextRun({
-                 text: plainText,
-                 font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-                 color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
-               })]
-             }));
+              spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+              children: [new TextRun({
+                text: plainText,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+                color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+              })]
+            }));
           }
         }
 
