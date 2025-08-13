@@ -789,20 +789,28 @@ function processNonTableContent(node, branding) {
     });
   } else if (tag === 'div') {
     // Process div contents recursively, but skip tables
-    Array.from(node.childNodes).forEach((child) => {
-      if (child.nodeType === Node.ELEMENT_NODE && child.tagName?.toLowerCase() !== 'table') {
-        elements.push(...processNonTableContent(child, branding));
-      } else if (child.nodeType === Node.TEXT_NODE && child.textContent?.trim()) {
+    const hasBlockElements = Array.from(node.children).some(child => {
+      const childTag = child.tagName?.toLowerCase();
+      return ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'div'].includes(childTag);
+    });
+    
+    if (hasBlockElements) {
+      // If div contains block elements, process them recursively
+      Array.from(node.childNodes).forEach((child) => {
+        if (child.nodeType === Node.ELEMENT_NODE && child.tagName?.toLowerCase() !== 'table') {
+          elements.push(...processNonTableContent(child, branding));
+        }
+      });
+    } else {
+      // If div only contains inline content, treat it as a paragraph
+      const textContent = parseTextContent(node, branding);
+      if (textContent.length > 0) {
         elements.push(new Paragraph({
-          children: [new TextRun({
-            text: child.textContent.trim(),
-            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
-          })],
+          children: textContent,
           spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
         }));
       }
-    });
+    }
   } else {
     // For other elements, extract text content
     const textContent = node.textContent?.trim();
@@ -843,7 +851,22 @@ function parseTextContent(node, branding, styles = {}) {
       if (tag === 'strong' || tag === 'b') childStyles.bold = true;
       if (tag === 'em' || tag === 'i') childStyles.italics = true;
       if (tag === 'u') childStyles.underline = {};
-      if (tag === 'span' && child.style.color) childStyles.color = child.style.color.replace('#', '');
+      
+      // Handle span elements with inline styles
+      if (tag === 'span') {
+        if (child.style.color) {
+          childStyles.color = child.style.color.replace('#', '');
+        }
+        if (child.style.fontWeight === 'bold' || child.style.fontWeight >= 700) {
+          childStyles.bold = true;
+        }
+        if (child.style.fontStyle === 'italic') {
+          childStyles.italics = true;
+        }
+        if (child.style.textDecoration && child.style.textDecoration.includes('underline')) {
+          childStyles.underline = {};
+        }
+      }
 
       children.push(...parseTextContent(child, branding, childStyles));
     }
