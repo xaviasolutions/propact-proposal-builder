@@ -12,7 +12,6 @@ import {
   HorizontalPositionAlign,
   TextWrappingType,
   VerticalAlign,
-  TableOfContents,
   TabStopType,
   TabStopPosition,
   LeaderType,
@@ -22,7 +21,6 @@ import {
   WidthType,
   BorderStyle,
   TableLayoutType,
-  TextDirection,
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -67,21 +65,27 @@ function getImageFormat(base64Image) {
 
 function isValidImageData(base64Image) {
   if (!base64Image || typeof base64Image !== 'string') {
+    console.log('Invalid image data: not a string or empty', { type: typeof base64Image, length: base64Image?.length });
     return false;
   }
 
   // Check if it's a valid data URL
   if (base64Image.startsWith('data:image/')) {
     const format = getImageFormat(base64Image);
-    const supportedFormats = ['png', 'jpeg', 'jpg', 'gif'];
-    return supportedFormats.includes(format);
+    const supportedFormats = ['png', 'jpeg', 'jpg'];
+    const isSupported = supportedFormats.includes(format);
+    console.log('Image format validation:', { format, isSupported, supportedFormats, imageStart: base64Image.substring(0, 50) });
+    return isSupported;
   }
 
   // Check if it's valid base64 (without data URL prefix)
   try {
     const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
-    return base64Data.length > 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(base64Data);
-  } catch {
+    const isValid = base64Data.length > 0 && /^[A-Za-z0-9+/]*={0,2}$/.test(base64Data);
+    console.log('Base64 validation (no data URL):', { hasComma: base64Image.includes(','), dataLength: base64Data.length, isValid, imageStart: base64Image.substring(0, 50) });
+    return isValid;
+  } catch (error) {
+    console.log('Base64 validation error:', error);
     return false;
   }
 }
@@ -163,6 +167,29 @@ function renderHeader(branding) {
       })
     ]
   });
+}
+
+function renderCoverHeader(backgroundImageData) {
+  if (!backgroundImageData || !DEBUG_FLAGS.renderImages || !isValidImageData(backgroundImageData)) {
+    return null;
+  }
+  
+  try {
+    const backgroundImage = createLetterheadBackground(backgroundImageData);
+    
+    if (backgroundImage) {
+      return new Header({
+        children: [new Paragraph({ 
+          children: [backgroundImage],
+          spacing: { after: 0 }
+        })]
+      });
+    }
+  } catch (err) {
+    console.warn('Cover header background render failed:', err);
+  }
+  
+  return null;
 }
 
 function renderFooter(branding) {
@@ -415,6 +442,129 @@ async function renderWatermark(branding) {
   }
 
   return []; // No watermark
+}
+
+// Helper function to create letterhead Letterhead
+function createLetterheadBackground(backgroundImageData) {
+  try {
+    // A4 dimensions in points (1 point = 1/72 inch)
+    // A4 = 8.27 × 11.69 inches = 595 × 843 points
+    const pageWidth = 595;
+    const pageHeight = 843;
+    
+    return new ImageRun({
+      data: getImageBuffer(backgroundImageData),
+      transformation: {
+        width: pageWidth,
+        height: pageHeight
+      },
+      type: getImageFormat(backgroundImageData),
+      floating: {
+        horizontalPosition: {
+          align: HorizontalPositionAlign.CENTER,
+          relative: 'page'
+        },
+        verticalPosition: {
+          align: VerticalPositionAlign.CENTER,
+          relative: 'page'
+        },
+        wrap: {
+          type: TextWrappingType.BEHIND
+        },
+        behindDocument: true,
+        allowOverlap: true,
+        margins: {
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        }
+      }
+    });
+  } catch (err) {
+    console.warn('Failed to create letterhead background:', err);
+    return null;
+  }
+}
+
+function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
+  const paragraphs = [];
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  // Debug logging
+  console.log('Cover template data:', coverTemplate);
+  console.log('Right side text:', coverTemplate?.rightSideText);
+
+  // Add right-side text if provided
+  if (coverTemplate?.rightSideText) {
+    console.log('Adding right side text:', coverTemplate.rightSideText);
+    paragraphs.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 200 },
+      children: [new TextRun({
+        text: coverTemplate.rightSideText,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 24,
+        bold: true
+      })]
+    }));
+  } else {
+    console.log('No right side text found in cover template');
+  }
+
+  // Add date (right-aligned)
+  paragraphs.push(new Paragraph({
+    alignment: AlignmentType.RIGHT,
+    spacing: { after: 400 },
+    children: [new TextRun({
+      text: currentDate,
+      font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+      size: 22
+    })]
+  }));
+
+  // Add placeholder for addresses (left blank as requested)
+  paragraphs.push(new Paragraph({
+    spacing: { after: 200 },
+    children: [new TextRun({ text: '[Addressee]' })]
+  }));
+  
+  paragraphs.push(new Paragraph({
+    spacing: { after: 400 },
+    children: [new TextRun({ text: '[Company Address]' })]
+  }));
+
+  // Add subject line with proposal title
+  if (proposalTitle) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: 'Subject: ',
+          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+          size: 22,
+          bold: true
+        }),
+        new TextRun({
+          text: `\t\t${proposalTitle}`,
+          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+          size: 22
+        })
+      ]
+    }));
+  }
+
+  // Add cover content if provided
+  if (coverTemplate.content) {
+    const htmlParagraphs = convertHtmlToDocxParagraphs(coverTemplate.content, branding);
+    paragraphs.push(...htmlParagraphs);
+  }
+
+  return paragraphs;
 }
 
 function convertHtmlToDocxParagraphs(html, branding) {
@@ -841,7 +991,8 @@ export const exportToDocx = async (proposal, branding = {}) => {
   if (DEBUG_FLAGS.renderSections) {
     for (const section of proposal.sections) {
 
-      const watermark = await renderWatermark(branding);
+      // Only add watermark to non-cover sections (cover sections use letterhead backgrounds instead)
+      const watermark = section.type === 'cover' ? [] : await renderWatermark(branding);
       const contentChildren = [...watermark];
 
       contentChildren.push(new Paragraph({
@@ -968,15 +1119,37 @@ export const exportToDocx = async (proposal, branding = {}) => {
           }));
         }
       }
+      // Handle cover sections with Letterheads (letterheads)
+      else if (section.type === 'cover') {
+        // Add cover content with new format
+        if (section.coverTemplate) {
+          const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding);
+          contentChildren.push(...coverParagraphs);
+        } else if (section.content) {
+          const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
+          contentChildren.push(...htmlParagraphs);
+        }
+      }
       // Handle regular content sections
       else if (section.content) {
         const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
         contentChildren.push(...htmlParagraphs);
       }
 
+      // Determine which header to use based on section type and Letterhead
+      let sectionHeaders = undefined;
+      if (section.type === 'cover' && section.coverTemplate?.backgroundImage) {
+        // Use cover header with Letterhead for letterhead
+        const coverHeader = renderCoverHeader(section.coverTemplate.backgroundImage);
+        sectionHeaders = coverHeader ? { default: coverHeader } : undefined;
+      } else if (DEBUG_FLAGS.renderHeader) {
+        // Use regular header for other sections
+        sectionHeaders = { default: renderHeader(branding) };
+      }
+      
       sections.push({
         properties: {},
-        headers: DEBUG_FLAGS.renderHeader ? { default: renderHeader(branding) } : undefined,
+        headers: sectionHeaders,
         footers: DEBUG_FLAGS.renderFooter ? { default: renderFooter(branding) } : undefined,
         children: contentChildren
       });

@@ -323,12 +323,20 @@ const TeamManager = () => {
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif']
+      'image/*': ['.jpeg', '.jpg', '.png']
     },
     maxFiles: 1,
     onDrop: (acceptedFiles) => {
       if (acceptedFiles.length > 0) {
         const file = acceptedFiles[0];
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+          alert('Please select only JPEG, JPG, or PNG image files.');
+          return;
+        }
+        
         const reader = new FileReader();
         reader.onload = () => {
           setFormData(prev => ({ ...prev, photo: reader.result }));

@@ -329,6 +329,7 @@ const Sidebar = () => {
             type: 'cover',
             title: 'Cover Letter',
             content: coverContent,
+            coverTemplate: selectedCover, // Preserve full cover template data
             order: 0
           },
           { id: uuidv4(), type: 'scope', title: 'Scope of Work', content: '', order: 1 },

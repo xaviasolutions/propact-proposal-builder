@@ -500,6 +500,13 @@ const BrandingTemplates = () => {
   const onLogoDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select only JPEG, JPG, or PNG image files.');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = () => {
         dispatch(updateCurrentBranding({
@@ -513,6 +520,13 @@ const BrandingTemplates = () => {
   const onWatermarkDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select only JPEG, JPG, or PNG image files.');
+        return;
+      }
+      
       setIsProcessingWatermark(true);
       try {
         const reader = new FileReader();
@@ -578,7 +592,7 @@ const BrandingTemplates = () => {
   const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
     onDrop: onLogoDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+      'image/*': ['.png', '.jpg', '.jpeg']
     },
     multiple: false
   });
@@ -586,7 +600,7 @@ const BrandingTemplates = () => {
   const { getRootProps: getWatermarkRootProps, getInputProps: getWatermarkInputProps, isDragActive: isWatermarkDragActive } = useDropzone({
     onDrop: onWatermarkDrop,
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.svg']
+      'image/*': ['.png', '.jpg', '.jpeg']
     },
     multiple: false
   });

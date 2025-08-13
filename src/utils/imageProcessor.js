@@ -43,6 +43,46 @@ export const applyTransparency = (imageDataUrl, transparency) => {
 };
 
 /**
+ * Resize image to exact A4 letterhead dimensions (stretching to fit)
+ * @param {string} imageDataUrl - Base64 image data URL
+ * @returns {Promise<string>} - Resized image as base64 data URL
+ */
+export const resizeImageForA4Letterhead = (imageDataUrl) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // A4 dimensions in pixels at 300 DPI
+        const a4Width = 2480;
+        const a4Height = 3508;
+
+        // Set canvas to exact A4 dimensions
+        canvas.width = a4Width;
+        canvas.height = a4Height;
+
+        // Draw image stretched to fill entire A4 canvas
+        ctx.drawImage(img, 0, 0, a4Width, a4Height);
+
+        // Convert canvas to base64
+        const resizedImageDataUrl = canvas.toDataURL('image/png');
+        resolve(resizedImageDataUrl);
+      };
+
+      img.onerror = () => {
+        reject(new Error('Failed to load image for A4 letterhead resize'));
+      };
+
+      img.src = imageDataUrl;
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+/**
  * Resize image while maintaining aspect ratio
  * @param {string} imageDataUrl - Base64 image data URL
  * @param {number} maxWidth - Maximum width
