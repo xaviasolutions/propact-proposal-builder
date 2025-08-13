@@ -959,7 +959,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'team', label: 'Our Team' },
     { value: 'cvs', label: 'Team CVs' },
     { value: 'case-study', label: 'Case Study' },
-    { value: 'services', label: 'Services' },
+    // { value: 'services', label: 'Services' },
     { value: 'table', label: 'Table Section' },
 
     // { value: 'testimonials', label: 'Testimonials' },

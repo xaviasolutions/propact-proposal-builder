@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiPlus, FiEdit3, FiTrash2, FiUser, FiUpload } from 'react-icons/fi';
+import { FiPlus, FiEdit3, FiTrash2, FiUser, FiUpload, FiFileText } from 'react-icons/fi';
 import { useSelector, useDispatch } from 'react-redux';
 import { addTeamMember, updateTeamMember, deleteTeamMember } from '../../store/slices/teamMembersSlice';
 import { useDropzone } from 'react-dropzone';
+import { parseDocxFile, isValidDocxFile } from '../../utils/docxParser';
 
 const ManagerContainer = styled.div`
   display: flex;
@@ -276,6 +277,60 @@ const PhotoUpload = styled.div`
   }
 `;
 
+const DocxUpload = styled.div`
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+  background: #f8f9fa;
+  
+  &:hover {
+    border-color: #28a745;
+    background: #e8f5e8;
+  }
+  
+  &.dragover {
+    border-color: #28a745;
+    background: #e8f5e8;
+  }
+`;
+
+const DocxUploadText = styled.div`
+  font-size: 14px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+`;
+
+const ImportButton = styled.button`
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #218838;
+  }
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+  }
+`;
+
 const ModalActions = styled.div`
   display: flex;
   gap: 12px;
@@ -310,6 +365,8 @@ const TeamManager = () => {
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isFileImported, setIsFileImported] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -346,8 +403,46 @@ const TeamManager = () => {
     }
   });
 
+  // DOCX file dropzone for CV import
+  const { getRootProps: getDocxRootProps, getInputProps: getDocxInputProps } = useDropzone({
+    accept: {
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    maxFiles: 1,
+    onDrop: async (acceptedFiles) => {
+      if (acceptedFiles.length > 0) {
+        const file = acceptedFiles[0];
+        
+        // Validate file type
+        if (!isValidDocxFile(file)) {
+          alert('Please select only .docx files.');
+          return;
+        }
+        
+        await handleDocxImport(file);
+      }
+    }
+  });
+
+  // Handle DOCX file import
+  const handleDocxImport = async (file) => {
+    setIsImporting(true);
+    try {
+      const htmlContent = await parseDocxFile(file);
+      setFormData(prev => ({ ...prev, cv: htmlContent }));
+      setIsFileImported(true);
+      alert('CV imported successfully from DOCX file!');
+    } catch (error) {
+      console.error('Error importing DOCX:', error);
+      alert(`Failed to import DOCX file: ${error.message}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleAddMember = () => {
     setEditingMember(null);
+    setIsFileImported(false);
     setFormData({
       name: '',
       role: '',
@@ -363,6 +458,7 @@ const TeamManager = () => {
 
   const handleEditMember = (member) => {
     setEditingMember(member);
+    setIsFileImported(false);
     setFormData({
       ...member,
       skills: Array.isArray(member.skills) ? member.skills.join(', ') : member.skills || ''
@@ -563,13 +659,47 @@ const TeamManager = () => {
 
               <FormGroup>
                 <Label>CV/Resume</Label>
-                <TextArea
-                  name="cv"
-                  value={formData.cv}
-                  onChange={handleInputChange}
-                  placeholder="Detailed CV or resume content..."
-                  style={{ minHeight: '120px' }}
-                />
+                
+                {/* DOCX Import Section */}
+                <DocxUpload {...getDocxRootProps()}>
+                  <input {...getDocxInputProps()} />
+                  <DocxUploadText>
+                    <FiFileText size={16} />
+                    {isImporting ? 'Importing DOCX...' : 'Click or drag a .docx file here to import CV'}
+                  </DocxUploadText>
+                  {isImporting && (
+                    <ImportButton disabled>
+                      <FiUpload size={12} />
+                      Importing...
+                    </ImportButton>
+                  )}
+                </DocxUpload>
+                
+                {!isFileImported && (
+                  <TextArea
+                    name="cv"
+                    value={formData.cv}
+                    onChange={handleInputChange}
+                    placeholder="Detailed CV or resume content... (or import from .docx file above)"
+                    style={{ minHeight: '120px' }}
+                  />
+                )}
+                {isFileImported && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#e8f5e8', 
+                    border: '1px solid #28a745', 
+                    borderRadius: '4px', 
+                    color: '#155724',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <FiFileText size={16} />
+                    CV content imported from DOCX file
+                  </div>
+                )}
               </FormGroup>
 
               <ModalActions>

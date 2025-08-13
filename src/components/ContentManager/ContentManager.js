@@ -58,7 +58,7 @@ const ContentManager = () => {
   const tabs = [
     { id: 'clients', label: 'Clients', icon: FiUsers },
     { id: 'case-studies', label: 'Case Studies', icon: FiBriefcase },
-    { id: 'services', label: 'Services', icon: FiStar },
+    // { id: 'services', label: 'Services', icon: FiStar },
     { id: 'team', label: 'Team Members', icon: FiUser },
     { id: 'covers', label: 'Cover Pages', icon: FiFileText },
     // { id: 'pre-saved', label: 'Pre-saved Content', icon: FiSave },
