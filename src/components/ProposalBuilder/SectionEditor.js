@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { FiType, FiFileText, FiUsers, FiBriefcase, FiTable, FiStar, FiMinus, FiSave } from 'react-icons/fi';
+import { FiType, FiFileText, FiUsers, FiBriefcase, FiTable, FiStar, FiMinus, FiSave, FiMove } from 'react-icons/fi';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useSelector } from 'react-redux';
 
 const EditorContainer = styled.div`
@@ -29,26 +30,23 @@ const EditorTitle = styled.h2`
   gap: 10px;
 `;
 
-const SaveButton = styled.button`
+const AutosaveStatus = styled.div`
   padding: 8px 16px;
-  border: none;
-  background: #007bff;
-  color: white;
   border-radius: 4px;
   font-size: 14px;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #0056b3;
+  color: #666;
+  background: ${props => props.isSaving ? '#fff3cd' : '#d4edda'};
+  border: 1px solid ${props => props.isSaving ? '#ffeaa7' : '#c3e6cb'};
+  
+  &.saving {
+    color: #856404;
   }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  
+  &.saved {
+    color: #155724;
   }
 `;
 
@@ -251,6 +249,236 @@ const ClientInfoItem = styled.div`
   }
 `;
 
+const RadioGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+`;
+
+const RadioOption = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: white;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: #007bff;
+    background: #f0f8ff;
+  }
+  
+  &.selected {
+    border-color: #007bff;
+    background: #e3f2fd;
+  }
+`;
+
+const RadioInput = styled.input`
+  margin: 0;
+`;
+
+const RadioLabel = styled.span`
+  font-weight: 500;
+  color: #333;
+`;
+
+const CheckboxContainer = styled.div`
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+`;
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+`;
+
+const CheckboxInput = styled.input`
+  margin: 0;
+`;
+
+// Legal Fees styled components
+const FeesContainer = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+`;
+
+const FeesSection = styled.div`
+  margin-bottom: 24px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const FeesTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 8px;
+`;
+
+const FeesSubtitle = styled.h4`
+  font-size: 16px;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 12px;
+`;
+
+const InputGroup = styled.div`
+  display: grid;
+  grid-template-columns: ${props => props.columns || '1fr'};
+  gap: 16px;
+  margin-bottom: 16px;
+`;
+
+const InputWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const SmallInput = styled(Input)`
+  width: 120px;
+`;
+
+const RatesTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+`;
+
+const TableHeader = styled.th`
+  background: #007bff;
+  color: white;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+`;
+
+const TableCell = styled.td`
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+`;
+
+const TableRow = styled.tr`
+  &:hover {
+    background: #f8f9fa;
+  }
+  
+  &:last-child td {
+    border-bottom: none;
+  }
+`;
+
+const AssumptionsList = styled.div`
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+`;
+
+const AssumptionItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const AssumptionText = styled.textarea`
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: vertical;
+  min-height: 40px;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  font-family: inherit;
+`;
+
+const RemoveButton = styled.button`
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: #c82333;
+  }
+`;
+
+const AddButton = styled.button`
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  
+  &:hover {
+    background: #218838;
+  }
+`;
+
+const WorkstreamContainer = styled.div`
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 12px;
+`;
+
+const WorkstreamHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const CurrencySelect = styled(Select)`
+  width: 200px;
+  min-width: 200px;
+`;
+
 const SectionEditor = ({ section, onUpdate }) => {
   const [title, setTitle] = useState(section.title);
   const [type, setType] = useState(section.type);
@@ -261,6 +489,9 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectedPreSavedContent, setSelectedPreSavedContent] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const saveTimeoutRef = useRef(null);
 
   // Table-specific state
   const [tableData, setTableData] = useState([
@@ -272,6 +503,51 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [tableDescription, setTableDescription] = useState('');
   const [tableNote, setTableNote] = useState('');
   const [tablePageBreak, setTablePageBreak] = useState(true); // Default to true
+  
+  // Fees-specific state
+  const [feeType, setFeeType] = useState('fixed'); // 'fixed', 'hourly', 'capped'
+  const [includeWorkstream, setIncludeWorkstream] = useState(false);
+  const [fixedFeeContent, setFixedFeeContent] = useState('');
+  const [hourlyFeeContent, setHourlyFeeContent] = useState('');
+  const [cappedFeeContent, setCappedFeeContent] = useState('');
+  const [workstreamContent, setWorkstreamContent] = useState('');
+  
+  // Legal fees specific state
+  const [hourlyRates, setHourlyRates] = useState([
+    { position: 'Senior Partner', rate: '', discountedRate: '' },
+    { position: 'Partner', rate: '', discountedRate: '' },
+    { position: 'Senior Associate', rate: '', discountedRate: '' },
+    { position: 'Associate', rate: '', discountedRate: '' },
+    { position: 'Paralegal/Trainee', rate: '', discountedRate: '' }
+  ]);
+  const [translationRate, setTranslationRate] = useState(''); // OMR per 250 words
+  const [translationContent, setTranslationContent] = useState(''); // Translation charges content
+  const [includeTaxes, setIncludeTaxes] = useState(true); // Include taxes by default
+  const [taxContent, setTaxContent] = useState(''); // Tax content
+  const [vatRate, setVatRate] = useState('5'); // Default 5%
+  const [maxRevisions, setMaxRevisions] = useState('');
+  const [maxHours, setMaxHours] = useState('');
+  const [assumptions, setAssumptions] = useState([
+    'Scope of work will not expand beyond workstreams listed in Schedule A',
+    'No in-person meetings required in specified locations unless agreed',
+    'Drafting limited to agreements/documents relevant to the project',
+    'Advice confined to Omani law unless otherwise agreed',
+    'Any work outside the defined schedules requires prior approval',
+    'Deliverables will be prepared in English',
+    'Judicial or court costs excluded'
+  ]);
+  const [workstreams, setWorkstreams] = useState([
+    { name: '', amount: '', type: 'fixed', description: '' } // type: 'fixed' or 'capped'
+  ]);
+  const [includeDiscountedRates, setIncludeDiscountedRates] = useState(false);
+  const [includeTranslation, setIncludeTranslation] = useState(true);
+  const [currency, setCurrency] = useState('OMR');
+  
+  // Editable headers state
+  const [positionHeader, setPositionHeader] = useState('Position');
+  const [standardRateHeader, setStandardRateHeader] = useState('Standard Rate');
+  const [assumptionsTitle, setAssumptionsTitle] = useState('Other Assumptions');
+  const [additionalDetailsTitle, setAdditionalDetailsTitle] = useState('Additional Details');
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
@@ -312,6 +588,52 @@ const SectionEditor = ({ section, onUpdate }) => {
       setTablePageBreak(section.tablePageBreak !== undefined ? section.tablePageBreak : true);
     }
     
+    // Load fees data for fees sections
+    if (section.type === 'fees') {
+      setFeeType(section.feeType || 'fixed');
+      setIncludeWorkstream(section.includeWorkstream || false);
+      setFixedFeeContent(section.fixedFeeContent || '');
+      setHourlyFeeContent(section.hourlyFeeContent || '');
+      setCappedFeeContent(section.cappedFeeContent || '');
+      setWorkstreamContent(section.workstreamContent || '');
+      
+      // Load new legal fees data
+      setHourlyRates(section.hourlyRates || [
+        { position: 'Senior Partner', rate: 250 },
+        { position: 'Partner', rate: 200 },
+        { position: 'Senior Associate', rate: 150 },
+        { position: 'Associate', rate: 120 },
+        { position: 'Paralegal/Trainee', rate: 80 }
+      ]);
+      setTranslationRate(section.translationRate || 8);
+      setTranslationContent(section.translationContent || 'The Fee does not include translation charges (Arabic to English or vice versa), which shall be billed separately at a rate of OMR 8 per 250 words. This rate may increase if any internal revisions are required by our lawyers, and such revisions shall be charged at the above hourly rates.');
+      setIncludeTaxes(section.includeTaxes !== undefined ? section.includeTaxes : true);
+      setTaxContent(section.taxContent || 'The Fee does not include applicable taxes. VAT will be charged at a rate of 5% (or any other rate applicable at the time of invoicing).');
+      setVatRate(section.vatRate || 5);
+      setMaxRevisions(section.maxRevisions || 3);
+      setMaxHours(section.maxHours || 40);
+      setAssumptions(section.assumptions || [
+        'Scope of work will not expand beyond workstreams listed in Schedule A',
+        'Maximum of 3 revisions or 40 hours (configurable based on scope)',
+        'No in-person meetings required in specified locations unless agreed',
+        'Drafting limited to agreements/documents relevant to the project',
+        'Advice confined to Omani law unless otherwise agreed',
+        'Any work outside the defined schedules requires prior approval',
+        'Deliverables will be prepared in English',
+        'Judicial or court costs excluded'
+      ]);
+      setWorkstreams(section.workstreams || [{ name: 'Main Workstream', amount: 5000, description: '' }]);
+      setIncludeDiscountedRates(section.includeDiscountedRates || false);
+      setIncludeTranslation(section.includeTranslation || false);
+      setCurrency(section.currency || 'OMR');
+      
+      // Load editable headers
+      setPositionHeader(section.positionHeader || 'Position');
+      setStandardRateHeader(section.standardRateHeader || 'Standard Rate');
+      setAssumptionsTitle(section.assumptionsTitle || 'Other Assumptions');
+      setAdditionalDetailsTitle(section.additionalDetailsTitle || 'Additional Details');
+    }
+    
     // If this is a cover letter section, try to find the selected cover
     if (section.type === 'cover' && section.content) {
       const matchingCover = covers.find(cover => cover.content === section.content);
@@ -321,40 +643,103 @@ const SectionEditor = ({ section, onUpdate }) => {
     }
   }, [section, covers]);
 
-  const handleSave = () => {
-    // Debug: Log the actual content being saved
-    console.log('🔍 SAVING SECTION:', title, 'Type:', type);
-    console.log('📄 Content length:', content?.length || 0);
-    console.log('📄 Content HTML:', content);
+  const handleSave = useCallback(async () => {
+    if (!hasChanges) return;
     
-    // Check for tables in the content
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    const tables = tempDiv.querySelectorAll('table');
-    console.log('🔍 Tables found in section content:', tables.length);
-    if (tables.length > 0) {
-      tables.forEach((table, index) => {
-        console.log(`📊 Table ${index + 1} HTML:`, table.outerHTML);
-      });
-    }
+    setIsSaving(true);
+    
+    try {
+      // Debug: Log the actual content being saved
+      console.log('🔍 AUTOSAVING SECTION:', title, 'Type:', type);
+      console.log('📄 Content length:', content?.length || 0);
+      
+      // Check for tables in the content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const tables = tempDiv.querySelectorAll('table');
+      console.log('🔍 Tables found in section content:', tables.length);
+      if (tables.length > 0) {
+        tables.forEach((table, index) => {
+          console.log(`📊 Table ${index + 1} HTML:`, table.outerHTML);
+        });
+      }
 
-    onUpdate({
-      ...section,
-      title,
-      type,
-      content,
-      selectedTeamMembers,
-      selectedCaseStudies,
-      selectedServices,
-      selectedCoverId,
-      tableData: type === 'table' ? tableData : section.tableData,
-      tableTitle: type === 'table' ? tableTitle : section.tableTitle,
-      tableDescription: type === 'table' ? tableDescription : section.tableDescription,
-      tableNote: type === 'table' ? tableNote : section.tableNote,
-      tablePageBreak: type === 'table' ? tablePageBreak : section.tablePageBreak
-    });
-    setHasChanges(false);
-  };
+      onUpdate({
+        ...section,
+        title,
+        type,
+        content,
+        selectedTeamMembers,
+        selectedCaseStudies,
+        selectedServices,
+        selectedCoverId,
+        tableData: type === 'table' ? tableData : section.tableData,
+        tableTitle: type === 'table' ? tableTitle : section.tableTitle,
+        tableDescription: type === 'table' ? tableDescription : section.tableDescription,
+        tableNote: type === 'table' ? tableNote : section.tableNote,
+        tablePageBreak: type === 'table' ? tablePageBreak : section.tablePageBreak,
+        feeType: type === 'fees' ? feeType : section.feeType,
+        includeWorkstream: type === 'fees' ? includeWorkstream : section.includeWorkstream,
+        fixedFeeContent: type === 'fees' ? fixedFeeContent : section.fixedFeeContent,
+        hourlyFeeContent: type === 'fees' ? hourlyFeeContent : section.hourlyFeeContent,
+        cappedFeeContent: type === 'fees' ? cappedFeeContent : section.cappedFeeContent,
+        workstreamContent: type === 'fees' ? workstreamContent : section.workstreamContent,
+        // New legal fees data
+        hourlyRates: type === 'fees' ? hourlyRates : section.hourlyRates,
+        translationRate: type === 'fees' ? translationRate : section.translationRate,
+        translationContent: type === 'fees' ? translationContent : section.translationContent,
+        includeTaxes: type === 'fees' ? includeTaxes : section.includeTaxes,
+        taxContent: type === 'fees' ? taxContent : section.taxContent,
+        vatRate: type === 'fees' ? vatRate : section.vatRate,
+        maxRevisions: type === 'fees' ? maxRevisions : section.maxRevisions,
+        maxHours: type === 'fees' ? maxHours : section.maxHours,
+        assumptions: type === 'fees' ? assumptions : section.assumptions,
+        workstreams: type === 'fees' ? workstreams : section.workstreams,
+        includeDiscountedRates: type === 'fees' ? includeDiscountedRates : section.includeDiscountedRates,
+        includeTranslation: type === 'fees' ? includeTranslation : section.includeTranslation,
+        currency: type === 'fees' ? currency : section.currency,
+        // Editable headers
+        positionHeader: type === 'fees' ? positionHeader : section.positionHeader,
+        standardRateHeader: type === 'fees' ? standardRateHeader : section.standardRateHeader,
+        assumptionsTitle: type === 'fees' ? assumptionsTitle : section.assumptionsTitle,
+        additionalDetailsTitle: type === 'fees' ? additionalDetailsTitle : section.additionalDetailsTitle
+      });
+      
+      setHasChanges(false);
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Error saving section:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [hasChanges, title, type, content, selectedTeamMembers, selectedCaseStudies, selectedServices, selectedCoverId, tableData, tableTitle, tableDescription, tableNote, tablePageBreak, feeType, includeWorkstream, fixedFeeContent, hourlyFeeContent, cappedFeeContent, workstreamContent, hourlyRates, translationRate, translationContent, includeTaxes, taxContent, vatRate, maxRevisions, maxHours, assumptions, workstreams, includeDiscountedRates, includeTranslation, currency, positionHeader, standardRateHeader, assumptionsTitle, additionalDetailsTitle, section, onUpdate]);
+
+  // Autosave with debouncing
+  const triggerAutosave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave();
+    }, 1000); // 1 second debounce
+  }, [handleSave]);
+
+  // Autosave effect - triggers when any state changes
+  useEffect(() => {
+    if (hasChanges) {
+      triggerAutosave();
+    }
+  }, [hasChanges, triggerAutosave]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
 
 
@@ -570,7 +955,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const sectionTypes = [
     { value: 'cover', label: 'Cover Letter' },
     { value: 'scope', label: 'Scope of Work' },
-    // { value: 'fees', label: 'Fees & Timeline' },
+    { value: 'fees', label: 'Fees' },
     { value: 'team', label: 'Our Team' },
     { value: 'cvs', label: 'Team CVs' },
     { value: 'case-study', label: 'Case Study' },
@@ -614,10 +999,15 @@ const SectionEditor = ({ section, onUpdate }) => {
           <FiType size={20} />
           Edit Section
         </EditorTitle>
-        <SaveButton onClick={handleSave} disabled={!hasChanges}>
+        <AutosaveStatus 
+          isSaving={isSaving} 
+          className={isSaving ? 'saving' : 'saved'}
+        >
           <FiSave size={14} />
-          {hasChanges ? 'Save Changes' : 'Saved'}
-        </SaveButton>
+          {isSaving ? 'Saving...' : 
+           lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 
+           hasChanges ? 'Changes pending...' : 'All changes saved'}
+        </AutosaveStatus>
       </EditorHeader>
 
       {/* Client Information Display */}
@@ -1095,13 +1485,648 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
-      {/* Table Functionality for Fees & Timeline */}
+      {/* Fees Section */}
       {type === 'fees' && (
-        <SelectorContainer>
-          <SelectorTitle>
-            <FiTable />
-            Table Tools
-          </SelectorTitle>
+        <FeesContainer>
+          <FeesTitle>Legal Fees Configuration</FeesTitle>
+          
+          {/* Currency Selection */}
+          <FeesSection>
+            <InputGroup>
+              <InputWrapper>
+                <Label>Currency</Label>
+                <CurrencySelect
+                  value={currency}
+                  onChange={(e) => {
+                    setCurrency(e.target.value);
+                    setHasChanges(true);
+                  }}
+                >
+                  <option value="OMR">OMR - Omani Rial</option>
+                  <option value="USD">USD - US Dollar</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="GBP">GBP - British Pound</option>
+                </CurrencySelect>
+              </InputWrapper>
+            </InputGroup>
+          </FeesSection>
+
+          {/* Fee Structure Selection */}
+          <FeesSection>
+            <FeesSubtitle>Fee Structure</FeesSubtitle>
+            <RadioGroup>
+              <RadioOption 
+                className={feeType === 'capped' ? 'selected' : ''}
+                onClick={() => {
+                  setFeeType('capped');
+                  setHasChanges(true);
+                }}
+              >
+                <RadioInput
+                  type="radio"
+                  name="feeType"
+                  value="capped"
+                  checked={feeType === 'capped'}
+                  onChange={() => {}}
+                />
+                <RadioLabel>Capped Fees - Maximum fee for entire scope (excluding taxes and disbursements)</RadioLabel>
+              </RadioOption>
+              
+              <RadioOption 
+                className={feeType === 'fixed' ? 'selected' : ''}
+                onClick={() => {
+                  setFeeType('fixed');
+                  setHasChanges(true);
+                }}
+              >
+                <RadioInput
+                  type="radio"
+                  name="feeType"
+                  value="fixed"
+                  checked={feeType === 'fixed'}
+                  onChange={() => {}}
+                />
+                <RadioLabel>Fixed Fees - Set fee per workstream or entire scope</RadioLabel>
+              </RadioOption>
+              
+              <RadioOption 
+                className={feeType === 'hourly' ? 'selected' : ''}
+                onClick={() => {
+                  setFeeType('hourly');
+                  setHasChanges(true);
+                }}
+              >
+                <RadioInput
+                  type="radio"
+                  name="feeType"
+                  value="hourly"
+                  checked={feeType === 'hourly'}
+                  onChange={() => {}}
+                />
+                <RadioLabel>Hourly Billing Without Caps - Fixed hourly rates by position</RadioLabel>
+              </RadioOption>
+            </RadioGroup>
+          </FeesSection>
+
+          {/* Content Editors for each fee type */}
+          <FeesSection>
+            <FeesSubtitle>Additional Content</FeesSubtitle>
+            
+            {/* Additional Details Title Input */}
+            <div style={{ marginBottom: '16px' }}>
+              <Label>Additional Details Section Title</Label>
+              <Input
+                value={additionalDetailsTitle}
+                onChange={(e) => {
+                  setAdditionalDetailsTitle(e.target.value);
+                  setHasChanges(true);
+                }}
+                placeholder="Additional Details"
+                style={{
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #e0e0e0'
+                }}
+              />
+            </div>
+            
+            {feeType === 'fixed' && (
+              <div style={{ marginBottom: '16px' }}>
+                <Label>Fixed Fee Content</Label>
+                <ReactQuill
+                  value={fixedFeeContent}
+                  onChange={(value) => {
+                    setFixedFeeContent(value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="Additional content for fixed fee structure..."
+                  style={{ backgroundColor: 'white', borderRadius: '4px' }}
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ]
+                  }}
+                  formats={['bold', 'italic', 'underline', 'list', 'bullet', 'link']}
+                />
+              </div>
+            )}
+            
+            {feeType === 'hourly' && (
+              <div style={{ marginBottom: '16px' }}>
+                <Label>Hourly Fee Content</Label>
+                <ReactQuill
+                  value={hourlyFeeContent}
+                  onChange={(value) => {
+                    setHourlyFeeContent(value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="Additional content for hourly fee structure..."
+                  style={{ backgroundColor: 'white', borderRadius: '4px' }}
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ]
+                  }}
+                  formats={['bold', 'italic', 'underline', 'list', 'bullet', 'link']}
+                />
+              </div>
+            )}
+            
+            {feeType === 'capped' && (
+              <div style={{ marginBottom: '16px' }}>
+                <Label>Capped Fee Content</Label>
+                <ReactQuill
+                  value={cappedFeeContent}
+                  onChange={(value) => {
+                    setCappedFeeContent(value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="Additional content for capped fee structure..."
+                  style={{ backgroundColor: 'white', borderRadius: '4px' }}
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ]
+                  }}
+                  formats={['bold', 'italic', 'underline', 'list', 'bullet', 'link']}
+                />
+              </div>
+            )}
+          </FeesSection>
+
+          {/* Hourly Rates Table - Only for Hourly Billing */}
+          {feeType === 'hourly' && (
+            <FeesSection>
+            <FeesSubtitle>Hourly Rates</FeesSubtitle>
+            <RatesTable>
+              <thead>
+                <tr>
+                  <TableHeader>
+                    <Input
+                      value={positionHeader}
+                      onChange={(e) => {
+                        setPositionHeader(e.target.value);
+                        setHasChanges(true);
+                      }}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        color: 'white', 
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        padding: '0'
+                      }}
+                      placeholder="Position"
+                    />
+                  </TableHeader>
+                  <TableHeader>
+                    <Input
+                      value={`${standardRateHeader} (${currency})`}
+                      onChange={(e) => {
+                        // Remove the currency part when editing
+                        const newValue = e.target.value.replace(` (${currency})`, '');
+                        setStandardRateHeader(newValue);
+                        setHasChanges(true);
+                      }}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        color: 'white', 
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        padding: '0'
+                      }}
+                      placeholder="Standard Rate"
+                    />
+                  </TableHeader>
+                  {includeDiscountedRates && <TableHeader>Discounted Rate ({currency})</TableHeader>}
+                </tr>
+              </thead>
+              <tbody>
+                {hourlyRates.map((rate, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <Input
+                        value={rate.position}
+                        onChange={(e) => {
+                          const newRates = hourlyRates.map((rate, i) => 
+                            i === index ? { ...rate, position: e.target.value } : rate
+                          );
+                          setHourlyRates(newRates);
+                          setHasChanges(true);
+                        }}
+                        placeholder="Position title"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <SmallInput
+                        type="number"
+                        value={rate.standardRate}
+                        onChange={(e) => {
+                          const newRates = hourlyRates.map((rate, i) => 
+                            i === index ? { ...rate, standardRate: e.target.value } : rate
+                          );
+                          setHourlyRates(newRates);
+                          setHasChanges(true);
+                        }}
+                        placeholder="0"
+                      />
+                    </TableCell>
+                    {includeDiscountedRates && (
+                      <TableCell>
+                        <SmallInput
+                          type="number"
+                          value={rate.discountedRate}
+                          onChange={(e) => {
+                            const newRates = hourlyRates.map((rate, i) => 
+                              i === index ? { ...rate, discountedRate: e.target.value } : rate
+                            );
+                            setHourlyRates(newRates);
+                            setHasChanges(true);
+                          }}
+                          placeholder="0"
+                        />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </tbody>
+            </RatesTable>
+            
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <AddButton
+                onClick={() => {
+                  setHourlyRates([...hourlyRates, { position: '', standardRate: '', discountedRate: '' }]);
+                  setHasChanges(true);
+                }}
+                style={{ margin: 0 }}
+              >
+                + Add Position
+              </AddButton>
+              
+              {hourlyRates.length > 1 && (
+                <RemoveButton
+                  onClick={() => {
+                    setHourlyRates(hourlyRates.slice(0, -1));
+                    setHasChanges(true);
+                  }}
+                  style={{ margin: 0 }}
+                >
+                  - Remove Last
+                </RemoveButton>
+              )}
+            </div>
+            
+            <CheckboxContainer>
+              <CheckboxLabel>
+                <CheckboxInput
+                  type="checkbox"
+                  checked={includeDiscountedRates}
+                  onChange={(e) => {
+                    setIncludeDiscountedRates(e.target.checked);
+                    setHasChanges(true);
+                  }}
+                />
+                Include discounted rates for out-of-scope work
+              </CheckboxLabel>
+            </CheckboxContainer>
+          </FeesSection>
+          )}
+
+          {/* Additional Charges */}
+          <FeesSection>
+            <FeesSubtitle>Additional Charges</FeesSubtitle>
+            
+            <CheckboxContainer>
+              <CheckboxLabel>
+                <CheckboxInput
+                  type="checkbox"
+                  checked={includeTranslation}
+                  onChange={(e) => {
+                    setIncludeTranslation(e.target.checked);
+                    setHasChanges(true);
+                  }}
+                />
+                Include translation charges
+              </CheckboxLabel>
+            </CheckboxContainer>
+            
+            {includeTranslation && (
+              <>
+                {/* <InputGroup>
+                  <InputWrapper>
+                    <Label>Translation Rate ({currency} per 250 words)</Label>
+                    <SmallInput
+                      type="number"
+                      value={translationRate}
+                      onChange={(e) => {
+                        setTranslationRate(e.target.value);
+                        setHasChanges(true);
+                      }}
+                      placeholder="8"
+                    />
+                  </InputWrapper>
+                </InputGroup> */}
+                <div style={{ marginTop: '16px' }}>
+                  <Label>Translation Charges Content</Label>
+                  <ReactQuill
+                    value={translationContent}
+                    onChange={(value) => {
+                      setTranslationContent(value);
+                      setHasChanges(true);
+                    }}
+                    placeholder="Enter translation charges details..."
+                    style={{ backgroundColor: 'white', borderRadius: '4px' }}
+                    modules={{
+                      toolbar: [
+                        ['bold', 'italic', 'underline'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link'],
+                        ['clean']
+                      ]
+                    }}
+                    formats={['bold', 'italic', 'underline', 'list', 'bullet', 'link']}
+                  />
+                </div>
+              </>
+            )}
+            
+            <CheckboxContainer>
+              <CheckboxLabel>
+                <CheckboxInput
+                  type="checkbox"
+                  checked={includeTaxes}
+                  onChange={(e) => {
+                    setIncludeTaxes(e.target.checked);
+                    setHasChanges(true);
+                  }}
+                />
+                Include taxes
+              </CheckboxLabel>
+            </CheckboxContainer>
+            
+            {includeTaxes && (
+              <div style={{ marginTop: '16px' }}>
+                <Label>Taxes Content</Label>
+                <ReactQuill
+                  value={taxContent}
+                  onChange={(value) => {
+                    setTaxContent(value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="Enter tax details..."
+                  style={{ backgroundColor: 'white', borderRadius: '4px' }}
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ]
+                  }}
+                  formats={['bold', 'italic', 'underline', 'list', 'bullet', 'link']}
+                />
+              </div>
+            )}
+            
+            {/* <InputGroup>
+              <InputWrapper>
+                <Label>VAT Rate (%)</Label>
+                <SmallInput
+                  type="number"
+                  value={vatRate}
+                  onChange={(e) => {
+                    setVatRate(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="5"
+                />
+              </InputWrapper>
+            </InputGroup> */}
+          </FeesSection>
+
+          {/* Scope Limitations */}
+          <FeesSection>
+            <FeesSubtitle>Scope Limitations</FeesSubtitle>
+            <InputGroup>
+              <InputWrapper>
+                <Label>Maximum Revisions</Label>
+                <SmallInput
+                  type="number"
+                  value={maxRevisions}
+                  onChange={(e) => {
+                    setMaxRevisions(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="3"
+                />
+              </InputWrapper>
+              <InputWrapper>
+                <Label>Maximum Hours (if applicable)</Label>
+                <SmallInput
+                  type="number"
+                  value={maxHours}
+                  onChange={(e) => {
+                    setMaxHours(e.target.value);
+                    setHasChanges(true);
+                  }}
+                  placeholder="50"
+                />
+              </InputWrapper>
+            </InputGroup>
+          </FeesSection>
+
+          {/* Other Assumptions */}
+          <FeesSection>
+            <div style={{ marginBottom: '12px' }}>
+              <Input
+                value={assumptionsTitle}
+                onChange={(e) => {
+                  setAssumptionsTitle(e.target.value);
+                  setHasChanges(true);
+                }}
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  color: '#555',
+                  border: '1px solid transparent',
+                  background: 'transparent',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}
+                onFocus={(e) => {
+                  e.target.style.border = '1px solid #007bff';
+                  e.target.style.background = 'white';
+                }}
+                onBlur={(e) => {
+                  e.target.style.border = '1px solid transparent';
+                  e.target.style.background = 'transparent';
+                }}
+                placeholder="Section Title"
+              />
+            </div>
+            <DragDropContext onDragEnd={(result) => {
+              if (!result.destination) return;
+              
+              const items = Array.from(assumptions);
+              const [reorderedItem] = items.splice(result.source.index, 1);
+              items.splice(result.destination.index, 0, reorderedItem);
+              
+              setAssumptions(items);
+              setHasChanges(true);
+            }}>
+              <Droppable droppableId="assumptions">
+                {(provided) => (
+                  <AssumptionsList {...provided.droppableProps} ref={provided.innerRef}>
+                    {assumptions.map((assumption, index) => (
+                      <Draggable key={`assumption-${index}`} draggableId={`assumption-${index}`} index={index}>
+                        {(provided, snapshot) => (
+                          <AssumptionItem
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            style={{
+                              ...provided.draggableProps.style,
+                              backgroundColor: snapshot.isDragging ? '#f8f9fa' : 'white',
+                              boxShadow: snapshot.isDragging ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                            }}
+                          >
+                            <div {...provided.dragHandleProps} style={{ cursor: 'grab', padding: '4px', color: '#666' }}>
+                              <FiMove size={16} />
+                            </div>
+                            <span style={{ marginTop: '8px', color: '#666' }}>•</span>
+                            <AssumptionText
+                              value={assumption}
+                              onChange={(e) => {
+                                const newAssumptions = [...assumptions];
+                                newAssumptions[index] = e.target.value;
+                                setAssumptions(newAssumptions);
+                                setHasChanges(true);
+                              }}
+                              placeholder="Enter assumption..."
+                            />
+                            <RemoveButton
+                              onClick={() => {
+                                setAssumptions(assumptions.filter((_, i) => i !== index));
+                                setHasChanges(true);
+                              }}
+                            >
+                              ×
+                            </RemoveButton>
+                          </AssumptionItem>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                    <AddButton
+                      onClick={() => {
+                        setAssumptions([...assumptions, '']);
+                        setHasChanges(true);
+                      }}
+                    >
+                      + Add Assumption
+                    </AddButton>
+                  </AssumptionsList>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </FeesSection>
+
+          {/* Workstreams - Only for Hourly and Capped fees */}
+          {(feeType === 'capped' || feeType === 'hourly') && (
+            <FeesSection>
+              <FeesSubtitle>Workstreams</FeesSubtitle>
+              {workstreams.map((workstream, index) => (
+                <WorkstreamContainer key={index}>
+                  <WorkstreamHeader>
+                    <h5 style={{ margin: 0, color: '#333' }}>Workstream {index + 1}</h5>
+                    <RemoveButton
+                      onClick={() => {
+                        setWorkstreams(workstreams.filter((_, i) => i !== index));
+                        setHasChanges(true);
+                      }}
+                    >
+                      Remove
+                    </RemoveButton>
+                  </WorkstreamHeader>
+                  <InputGroup>
+                    <InputWrapper>
+                      <Label>Workstream Name</Label>
+                      <Input
+                        value={workstream.name}
+                        onChange={(e) => {
+                          const newWorkstreams = workstreams.map((ws, i) => 
+                            i === index ? { ...ws, name: e.target.value } : ws
+                          );
+                          setWorkstreams(newWorkstreams);
+                          setHasChanges(true);
+                        }}
+                        placeholder="e.g., Contract Review"
+                      />
+                    </InputWrapper>
+                    {feeType !== 'hourly' && (
+                      <InputWrapper>
+                        <Label>{feeType === 'capped' ? 'Cap Amount' : 'Fixed Amount'} ({currency})</Label>
+                        <SmallInput
+                          type="number"
+                          value={workstream.amount}
+                          onChange={(e) => {
+                            const newWorkstreams = workstreams.map((ws, i) => 
+                              i === index ? { ...ws, amount: e.target.value } : ws
+                            );
+                            setWorkstreams(newWorkstreams);
+                            setHasChanges(true);
+                          }}
+                          placeholder="0"
+                        />
+                      </InputWrapper>
+                    )}
+                  </InputGroup>
+                  <div style={{ marginTop: '12px' }}>
+                    <Label>Description</Label>
+                    <AssumptionText
+                      value={workstream.description}
+                      onChange={(e) => {
+                        const newWorkstreams = workstreams.map((ws, i) => 
+                          i === index ? { ...ws, description: e.target.value } : ws
+                        );
+                        setWorkstreams(newWorkstreams);
+                        setHasChanges(true);
+                      }}
+                      placeholder="Describe the scope of this workstream..."
+                      style={{ minHeight: '60px', width: '100%' }}
+                    />
+                  </div>
+                </WorkstreamContainer>
+              ))}
+              <AddButton
+                onClick={() => {
+                  setWorkstreams([...workstreams, { name: '', amount: '', description: '' }]);
+                  setHasChanges(true);
+                }}
+              >
+                + Add Workstream
+              </AddButton>
+            </FeesSection>
+          )}
+
+
+        </FeesContainer>
+      )}
+
+      {/* Quick Insert Templates */}
+      {/* {type === 'fees' && (
+        <div style={{ marginTop: '20px' }}>
+          <Label>Quick Insert Templates</Label>
           <TableToolbar>
             <TableButton onClick={() => {
               const tableHtml = `
@@ -1124,49 +2149,12 @@ const SectionEditor = ({ section, onUpdate }) => {
                       <td style="border: 1px solid #dee2e6; padding: 12px;">1-2 weeks</td>
                       <td style="border: 1px solid #dee2e6; padding: 12px;">$X,XXX</td>
                     </tr>
-                  </tbody>
-                </table>
-              `;
-              setContent(content + tableHtml);
-              setHasChanges(true);
-            }}>
-              Insert Fees Table
-            </TableButton>
-            <TableButton onClick={() => {
-              const timelineHtml = `
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                  <thead>
-                    <tr style="background-color: #f8f9fa;">
-                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Phase</th>
-                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Duration</th>
-                      <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Deliverables</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 1</td>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Week 1-2</td>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Initial deliverables</td>
-                    </tr>
-                    <tr>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 2</td>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Week 3-4</td>
-                      <td style="border: 1px solid #dee2e6; padding: 12px;">Final deliverables</td>
-                    </tr>
-                  </tbody>
-                </table>
-              `;
-              setContent(content + timelineHtml);
-              setHasChanges(true);
-            }}>
-              Insert Timeline Table
-            </TableButton>
-          </TableToolbar>
-        </SelectorContainer>
-      )}
+                    </tbody>
+                  </table>
+                `;                const currentContent = feeType === 'fixed' ? fixedFeeContent :                                     feeType === 'hourly' ? hourlyFeeContent :                                     cappedFeeContent;                const newContent = currentContent + tableHtml;                                if (feeType === 'fixed') {                  setFixedFeeContent(newContent);                } else if (feeType === 'hourly') {                  setHourlyFeeContent(newContent);                } else {                  setCappedFeeContent(newContent);                }                setHasChanges(true);              }}>                Insert Fees Table              </TableButton>              <TableButton onClick={() => {                const timelineHtml = `                  <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">                    <thead>                      <tr style="background-color: #f8f9fa;">                        <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Phase</th>                        <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Duration</th>                        <th style="border: 1px solid #dee2e6; padding: 12px; text-align: left;">Deliverables</th>                      </tr>                    </thead>                    <tbody>                      <tr>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 1</td>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Week 1-2</td>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Initial deliverables</td>                      </tr>                      <tr>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Phase 2</td>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Week 3-4</td>                        <td style="border: 1px solid #dee2e6; padding: 12px;">Final deliverables</td>                      </tr>                    </tbody>                  </table>                `;                const currentContent = feeType === 'fixed' ? fixedFeeContent :                                     feeType === 'hourly' ? hourlyFeeContent :                                     cappedFeeContent;                const newContent = currentContent + timelineHtml;                                if (feeType === 'fixed') {                  setFixedFeeContent(newContent);                } else if (feeType === 'hourly') {                  setHourlyFeeContent(newContent);                } else {                  setCappedFeeContent(newContent);                }                setHasChanges(true);              }}>                Insert Timeline Table              </TableButton>            </TableToolbar>          </div>
+      )} */}
 
-      {/* Content Editor - Hidden for page break and table sections */}
-      {type !== 'page-break' && type !== 'table' && (
+      {/* Content Editor - Hidden for page break, table, and fees sections */}      {type !== 'page-break' && type !== 'table' && type !== 'fees' && (
         <FormGroup>
           <Label>Content</Label>
           <QuillContainer>

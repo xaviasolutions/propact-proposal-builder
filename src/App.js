@@ -117,7 +117,7 @@ function AppContent() {
 //           { 
 //             id: uuidv4(), 
 //             type: 'fees', 
-//             title: 'Fees & Timeline', 
+//             title: 'Fees', 
 //             content: `<h2>Investment & Timeline</h2>
 // <h3>Project Investment</h3>
 // <table border="1" style="width: 100%; border-collapse: collapse; margin: 20px 0;">

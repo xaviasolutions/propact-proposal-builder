@@ -1119,6 +1119,304 @@ export const exportToDocx = async (proposal, branding = {}) => {
           }));
         }
       }
+      // Handle fees sections with comprehensive legal fee structure
+      else if (section.type === 'fees') {
+        const currency = section.currency || 'OMR';
+        
+        // Add fee structure heading
+        const feeTypeLabel = {
+          'capped': 'Capped Fees',
+          'fixed': 'Fixed Fees', 
+          'hourly': 'Hourly Billing Without Caps'
+        }[section.feeType] || 'Fee Structure';
+        
+        contentChildren.push(new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+          children: [new TextRun({
+            text: feeTypeLabel,
+            bold: true,
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+          })]
+        }));
+        
+        // Add Additional Details section BEFORE pricing components
+        if (section.feeType && section[`${section.feeType}FeeContent`]) {
+          const feeContent = section[`${section.feeType}FeeContent`];
+          if (feeContent && feeContent.trim()) {
+            contentChildren.push(new Paragraph({
+              heading: HeadingLevel.HEADING_3,
+              spacing: DEBUG_FLAGS.renderSpacing ? { before: 300, after: 100 } : undefined,
+              children: [new TextRun({
+                text: section.additionalDetailsTitle || 'Additional Details',
+                bold: true,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+                color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+              })]
+            }));
+            
+            const feeParagraphs = convertHtmlToDocxParagraphs(feeContent, branding);
+            contentChildren.push(...feeParagraphs);
+          }
+        }
+        
+        // Add hourly rates table if hourly rates exist and fee type is hourly
+        if (section.feeType === 'hourly' && section.hourlyRates && section.hourlyRates.length > 0) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 100 } : undefined,
+            children: [new TextRun({
+              text: 'Hourly Rates',
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+          
+          // Create hourly rates table
+          const ratesTableRows = [];
+          
+          // Header row
+          const headerCells = [
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: section.positionHeader || 'Position', bold: true, color: 'FFFFFF' })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: branding?.colors?.accent?.replace('#', '') || '007bff' }
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: `${section.standardRateHeader || 'Standard Rate'} (${currency})`, bold: true, color: 'FFFFFF' })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: branding?.colors?.accent?.replace('#', '') || '007bff' }
+            })
+          ];
+          
+          if (section.includeDiscountedRates) {
+            headerCells.push(new TableCell({
+              children: [new Paragraph({
+                children: [new TextRun({ text: `Discounted Rate (${currency})`, bold: true, color: 'FFFFFF' })],
+                alignment: AlignmentType.CENTER
+              })],
+              shading: { fill: branding?.colors?.accent?.replace('#', '') || '007bff' }
+            }));
+          }
+          
+          ratesTableRows.push(new TableRow({ children: headerCells }));
+          
+          // Data rows
+          section.hourlyRates.forEach(rate => {
+            const dataCells = [
+              new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ text: rate.position || '' })],
+                  alignment: AlignmentType.LEFT
+                })]
+              }),
+              new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ text: rate.standardRate || '' })],
+                  alignment: AlignmentType.RIGHT
+                })]
+              })
+            ];
+            
+            if (section.includeDiscountedRates) {
+              dataCells.push(new TableCell({
+                children: [new Paragraph({
+                  children: [new TextRun({ text: rate.discountedRate || '' })],
+                  alignment: AlignmentType.RIGHT
+                })]
+              }));
+            }
+            
+            ratesTableRows.push(new TableRow({ children: dataCells }));
+          });
+          
+          const ratesTable = new Table({
+            rows: ratesTableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+          });
+          
+          contentChildren.push(ratesTable);
+        }
+        
+        // Add workstreams if they exist and fee type is hourly or capped
+        if ((section.feeType === 'hourly' || section.feeType === 'capped') && section.workstreams && section.workstreams.length > 0) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 300, after: 100 } : undefined,
+            children: [new TextRun({
+              text: 'Workstreams',
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+          
+          section.workstreams.forEach((workstream, index) => {
+            contentChildren.push(new Paragraph({
+              spacing: DEBUG_FLAGS.renderSpacing ? { before: 100, after: 50 } : undefined,
+              children: [new TextRun({
+                text: `${index + 1}. ${workstream.name || 'Workstream'}`,
+                bold: true,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+              })]
+            }));
+            
+            if (workstream.amount && section.feeType !== 'hourly') {
+              const amountLabel = section.feeType === 'capped' ? 'Cap Amount' : 'Fixed Amount';
+              contentChildren.push(new Paragraph({
+                spacing: DEBUG_FLAGS.renderSpacing ? { after: 50 } : undefined,
+                children: [new TextRun({
+                  text: `${amountLabel}: ${currency} ${workstream.amount}`,
+                  font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+                })]
+              }));
+            }
+            
+            if (workstream.description) {
+              contentChildren.push(new Paragraph({
+                spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined,
+                children: [new TextRun({
+                  text: workstream.description,
+                  font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+                })]
+              }));
+            }
+          });
+        }
+        
+        // Add additional charges section
+        if (section.includeTranslation || section.vatRate) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 300, after: 100 } : undefined,
+            children: [new TextRun({
+              text: 'Additional Charges',
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+          
+          if (section.includeTranslation && section.translationContent) {
+            // Convert HTML content to plain text for DOCX
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = section.translationContent;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            if (plainText.trim()) {
+              contentChildren.push(new Paragraph({
+                spacing: DEBUG_FLAGS.renderSpacing ? { after: 50 } : undefined,
+                children: [new TextRun({
+                  text: plainText,
+                  font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+                })]
+              }));
+            }
+          }
+          
+          if (section.includeTaxes && section.taxContent) {
+            // Convert HTML content to plain text for DOCX
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = section.taxContent;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            if (plainText.trim()) {
+              contentChildren.push(new Paragraph({
+                spacing: DEBUG_FLAGS.renderSpacing ? { after: 50 } : undefined,
+                children: [new TextRun({
+                  text: plainText,
+                  font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+                })]
+              }));
+            }
+          }
+          
+          if (section.vatRate) {
+            contentChildren.push(new Paragraph({
+              spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined,
+              children: [new TextRun({
+                text: `VAT: ${section.vatRate}% will be calculated on the invoice.`,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+              })]
+            }));
+          }
+        }
+        
+        // Add scope limitations
+        if (section.maxRevisions || section.maxHours) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 300, after: 100 } : undefined,
+            children: [new TextRun({
+              text: 'Scope Limitations',
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+          
+          if (section.maxRevisions) {
+            contentChildren.push(new Paragraph({
+              spacing: DEBUG_FLAGS.renderSpacing ? { after: 50 } : undefined,
+              children: [new TextRun({
+                text: `Maximum revisions: ${section.maxRevisions}`,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+              })]
+            }));
+          }
+          
+          if (section.maxHours) {
+            contentChildren.push(new Paragraph({
+              spacing: DEBUG_FLAGS.renderSpacing ? { after: 100 } : undefined,
+              children: [new TextRun({
+                text: `Maximum hours: ${section.maxHours}`,
+                font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+              })]
+            }));
+          }
+        }
+        
+        // Add other assumptions
+        if (section.assumptions && section.assumptions.length > 0) {
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 300, after: 100 } : undefined,
+            children: [new TextRun({
+              text: section.assumptionsTitle || 'Other Assumptions',
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+          
+          section.assumptions.forEach(assumption => {
+            if (assumption.trim()) {
+              contentChildren.push(new Paragraph({
+                spacing: DEBUG_FLAGS.renderSpacing ? { after: 50 } : undefined,
+                children: [new TextRun({
+                  text: `• ${assumption}`,
+                  font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial'
+                })]
+              }));
+            }
+          });
+        }
+        
+        // Additional Details section has been moved to the beginning of the fees section
+        
+        // Add spacing after fees section
+        contentChildren.push(new Paragraph({
+          children: [],
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        }));
+      }
       // Handle cover sections with Letterheads (letterheads)
       else if (section.type === 'cover') {
         // Add cover content with new format

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { FiX, FiCheck, FiPlus, FiFileText, FiUser, FiBriefcase, FiSearch } from 'react-icons/fi';
+import { FiX, FiCheck, FiPlus, FiFileText, FiUser, FiSearch, FiImage } from 'react-icons/fi';
 import { useSelector, useDispatch } from 'react-redux';
 import { addClient } from '../../store/slices/clientsSlice';
-import CoverSelector from '../CoverSelector/CoverSelector';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -387,64 +386,6 @@ const CoverSelectionSection = styled.div`
   margin-bottom: 24px;
 `;
 
-const CoverButton = styled.button`
-  width: 100%;
-  padding: 16px;
-  border: 2px dashed #e0e0e0;
-  background: #f8f9fa;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #666;
-
-  &:hover {
-    border-color: #007bff;
-    background: #f0f8ff;
-    color: #007bff;
-  }
-`;
-
-const SelectedCoverCard = styled.div`
-  border: 2px solid #007bff;
-  border-radius: 8px;
-  padding: 16px;
-  background: #f8f9fa;
-  margin-bottom: 16px;
-`;
-
-const SelectedCoverName = styled.h4`
-  margin: 0 0 8px 0;
-  color: #333;
-  font-size: 16px;
-  font-weight: 600;
-`;
-
-const SelectedCoverInfo = styled.div`
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-`;
-
-const ChangeCoverButton = styled.button`
-  background: none;
-  border: 1px solid #007bff;
-  color: #007bff;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #007bff;
-    color: white;
-  }
-`;
-
 const ButtonContainer = styled.div`
   display: flex;
   justify-content: space-between;
@@ -485,18 +426,98 @@ const Button = styled.button`
   }
 `;
 
+// Cover selection styled components
+const CoverGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+`;
+
+const CoverCard = styled.div`
+  border: 2px solid ${props => props.selected ? '#007bff' : '#e0e0e0'};
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => props.selected ? '#f8f9fa' : 'white'};
+
+  &:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+  }
+`;
+
+const CoverName = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+`;
+
+const CoverCategory = styled.div`
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+`;
+
+const CoverPreview = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+  min-height: 80px;
+`;
+
+const PreviewHeader = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #007bff;
+  margin-bottom: 6px;
+  text-align: center;
+`;
+
+const PreviewContent = styled.div`
+  font-size: 11px;
+  color: #666;
+  line-height: 1.3;
+  max-height: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const PreviewFooter = styled.div`
+  font-size: 11px;
+  color: #666;
+  margin-top: 6px;
+  text-align: center;
+  font-style: italic;
+`;
+
+const LogoIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: ${props => props.hasLogo ? '#28a745' : '#666'};
+`;
+
 const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
   const dispatch = useDispatch();
   const { brandingTemplates } = useSelector(state => state.branding);
   const { clients } = useSelector(state => state.clients);
+  const { covers } = useSelector(state => state.covers);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [selectedCover, setSelectedCover] = useState(null);
-  const [showCoverSelector, setShowCoverSelector] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
   const [templateSearchTerm, setTemplateSearchTerm] = useState('');
   const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [coverSearchTerm, setCoverSearchTerm] = useState('');
   const [clientFormData, setClientFormData] = useState({
     name: '',
     company: '',
@@ -518,6 +539,15 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
     client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
     client.company.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+  );
+
+  // Filter covers based on search term
+  const filteredCovers = covers.filter(cover =>
+    cover.name.toLowerCase().includes(coverSearchTerm.toLowerCase()) ||
+    cover.category.toLowerCase().includes(coverSearchTerm.toLowerCase()) ||
+    (cover.content && cover.content.toLowerCase().includes(coverSearchTerm.toLowerCase())) ||
+    (cover.header && cover.header.toLowerCase().includes(coverSearchTerm.toLowerCase())) ||
+    (cover.footer && cover.footer.toLowerCase().includes(coverSearchTerm.toLowerCase()))
   );
 
   const handleTemplateSelect = (template) => {
@@ -551,7 +581,6 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
 
   const handleCoverSelect = (cover) => {
     setSelectedCover(cover);
-    setShowCoverSelector(false);
   };
 
   const handleNewClientSubmit = (e) => {
@@ -590,10 +619,10 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
     setSelectedTemplate(null);
     setSelectedClient(null);
     setSelectedCover(null);
-    setShowCoverSelector(false);
     setShowClientForm(false);
     setTemplateSearchTerm('');
     setClientSearchTerm('');
+    setCoverSearchTerm('');
     setClientFormData({
       name: '',
       company: '',
@@ -837,27 +866,70 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
               </SectionTitle>
               
               <CoverSelectionSection>
-                {selectedCover ? (
-                  <SelectedCoverCard>
-                    <SelectedCoverName>{selectedCover.name}</SelectedCoverName>
-                    <SelectedCoverInfo>Category: {selectedCover.category}</SelectedCoverInfo>
-                    <SelectedCoverInfo>
-                      {selectedCover.logo ? 'Includes logo' : 'No logo'} • 
-                      {selectedCover.header ? ' Header included' : ' No header'} • 
-                      {selectedCover.footer ? ' Footer included' : ' No footer'}
-                    </SelectedCoverInfo>
-                    <ChangeCoverButton onClick={() => setShowCoverSelector(true)}>
-                      Change Cover
-                    </ChangeCoverButton>
-                  </SelectedCoverCard>
+                {covers.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: '#666', 
+                    padding: '40px 20px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '2px dashed #e0e0e0'
+                  }}>
+                    No cover templates available. Create cover templates in the Content Manager first.
+                  </div>
                 ) : (
-                  <CoverButton onClick={() => setShowCoverSelector(true)}>
-                    <FiFileText size={24} />
-                    <div>Select Cover Template</div>
-                    <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                      Choose from available cover templates
-                    </div>
-                  </CoverButton>
+                  <>
+                    <SearchContainer>
+                      <SearchIcon>
+                        <FiSearch size={16} />
+                      </SearchIcon>
+                      <SearchInput
+                        type="text"
+                        placeholder="Search covers by name, category, or content..."
+                        value={coverSearchTerm}
+                        onChange={(e) => setCoverSearchTerm(e.target.value)}
+                      />
+                    </SearchContainer>
+                    
+                    {filteredCovers.length === 0 ? (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        color: '#666', 
+                        padding: '20px',
+                        background: '#f8f9fa',
+                        borderRadius: '8px'
+                      }}>
+                        No covers found matching "{coverSearchTerm}". Try a different search term.
+                      </div>
+                    ) : (
+                      <CoverGrid>
+                        {filteredCovers.map(cover => (
+                          <CoverCard
+                            key={cover.id}
+                            selected={selectedCover?.id === cover.id}
+                            onClick={() => handleCoverSelect(cover)}
+                          >
+                            <CoverName>{cover.name}</CoverName>
+                            <CoverCategory>{cover.category}</CoverCategory>
+
+                            <LogoIndicator hasLogo={!!cover.logo}>
+                              <FiImage size={12} />
+                              {cover.logo ? 'Logo included' : 'No logo'}
+                            </LogoIndicator>
+
+                            <CoverPreview>
+                              {cover.header && <PreviewHeader>{cover.header}</PreviewHeader>}
+                              <PreviewContent>
+                                {cover.content.substring(0, 100)}
+                                {cover.content.length > 100 && '...'}
+                              </PreviewContent>
+                              {cover.footer && <PreviewFooter>{cover.footer}</PreviewFooter>}
+                            </CoverPreview>
+                          </CoverCard>
+                        ))}
+                      </CoverGrid>
+                    )}
+                  </>
                 )}
               </CoverSelectionSection>
             </>
@@ -905,12 +977,7 @@ const TemplateSelector = ({ isOpen, onClose, onSelect, mode = 'create' }) => {
         </ModalContent>
       </ModalOverlay>
 
-      <CoverSelector
-        isOpen={showCoverSelector}
-        onClose={() => setShowCoverSelector(false)}
-        onSelect={handleCoverSelect}
-        selectedCover={selectedCover}
-      />
+
 
       {showClientForm && (
         <ClientFormModal onClick={() => setShowClientForm(false)}>
