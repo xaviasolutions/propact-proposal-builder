@@ -15,7 +15,7 @@ export const AppProvider = ({ children }) => {
   const [proposals, setProposals] = useState([]);
   const [currentProposal, setCurrentProposal] = useState(null);
   const [clients, setClients] = useState([]);
-  const [caseStudies, setCaseStudies] = useState([]);
+  const [firmExperience, setFirmExperience] = useState([]);
   const [services, setServices] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [brandingTemplates, setBrandingTemplates] = useState([]);
@@ -43,7 +43,7 @@ export const AppProvider = ({ children }) => {
         const data = JSON.parse(savedData);
         setProposals(data.proposals || []);
         setClients(data.clients || []);
-        setCaseStudies(data.caseStudies || []);
+        setFirmExperience(data.firmExperience || []);
         setServices(data.services || []);
         setTeamMembers(data.teamMembers || []);
         setBrandingTemplates(data.brandingTemplates || []);
@@ -72,14 +72,14 @@ export const AppProvider = ({ children }) => {
       proposals,
       currentProposal,
       clients,
-      caseStudies,
+      firmExperience,
       services,
       teamMembers,
       brandingTemplates,
       currentBranding
     };
     localStorage.setItem('propact-data', JSON.stringify(dataToSave));
-  }, [isLoaded, proposals, currentProposal, clients, caseStudies, services, teamMembers, brandingTemplates, currentBranding]);
+  }, [isLoaded, proposals, currentProposal, clients, firmExperience, services, teamMembers, brandingTemplates, currentBranding]);
 
   const updateProposal = (proposalId, updates) => {
     setProposals(prev => prev.map(proposal => 
@@ -107,14 +107,14 @@ export const AppProvider = ({ children }) => {
     return newClient;
   };
 
-  const addCaseStudy = (caseStudy) => {
-    const newCaseStudy = {
-      ...caseStudy,
+  const addFirmExperience = (experience) => {
+    const newExperience = {
+      ...experience,
       id: Date.now().toString(),
       createdAt: new Date().toISOString()
     };
-    setCaseStudies(prev => [...prev, newCaseStudy]);
-    return newCaseStudy;
+    setFirmExperience(prev => [...prev, newExperience]);
+    return newExperience;
   };
 
   const addService = (service) => {
@@ -159,9 +159,9 @@ export const AppProvider = ({ children }) => {
     clients,
     setClients,
     addClient,
-    caseStudies,
-    setCaseStudies,
-    addCaseStudy,
+    firmExperience,
+    setFirmExperience,
+    addFirmExperience,
     services,
     setServices,
     addService,

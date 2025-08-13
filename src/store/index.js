@@ -6,24 +6,28 @@ import storage from 'localforage';
 // Import all slices
 import proposalsReducer from './slices/proposalsSlice';
 import clientsReducer from './slices/clientsSlice';
-import caseStudiesReducer from './slices/caseStudiesSlice';
+import firmExperienceReducer from './slices/firmExperienceSlice';
 import servicesReducer from './slices/servicesSlice';
 import teamMembersReducer from './slices/teamMembersSlice';
 import brandingReducer from './slices/brandingSlice';
 import coversReducer from './slices/coversSlice';
 import preSavedContentReducer from './slices/preSavedContentSlice';
+import keywordsReducer from './slices/keywordsSlice';
+import sectorsReducer from './slices/sectorsSlice';
 
 
 // Combine all reducers
 const rootReducer = combineReducers({
   proposals: proposalsReducer,
   clients: clientsReducer,
-  caseStudies: caseStudiesReducer,
+  firmExperience: firmExperienceReducer,
   services: servicesReducer,
   teamMembers: teamMembersReducer,
   branding: brandingReducer,
   covers: coversReducer,
   preSavedContent: preSavedContentReducer,
+  keywords: keywordsReducer,
+  sectors: sectorsReducer,
 
 });
 

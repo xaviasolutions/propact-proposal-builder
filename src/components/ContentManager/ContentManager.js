@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { FiUsers, FiBriefcase, FiStar, FiUser, FiFileText, FiSave } from 'react-icons/fi';
 import ClientManager from './ClientManager';
-import CaseStudyManager from './CaseStudyManager';
+import FirmExperienceManager from './FirmExperienceManager';
 import ServiceManager from './ServiceManager';
 import TeamManager from './TeamManager';
 import CoverManager from './CoverManager';
@@ -57,7 +57,7 @@ const ContentManager = () => {
 
   const tabs = [
     { id: 'clients', label: 'Clients', icon: FiUsers },
-    { id: 'case-studies', label: 'Case Studies', icon: FiBriefcase },
+    { id: 'firm-experience', label: 'Firm Experience', icon: FiBriefcase },
     // { id: 'services', label: 'Services', icon: FiStar },
     { id: 'team', label: 'Team Members', icon: FiUser },
     { id: 'covers', label: 'Cover Pages', icon: FiFileText },
@@ -68,8 +68,8 @@ const ContentManager = () => {
     switch (activeTab) {
       case 'clients':
         return <ClientManager />;
-      case 'case-studies':
-        return <CaseStudyManager />;
+      case 'firm-experience':
+        return <FirmExperienceManager />;
       case 'services':
         return <ServiceManager />;
       case 'team':

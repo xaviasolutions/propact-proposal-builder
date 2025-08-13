@@ -211,7 +211,7 @@ const GlobalSearch = ({ onResultClick }) => {
   const [activeFilters, setActiveFilters] = useState({
     proposals: true,
     clients: true,
-    caseStudies: true,
+    firmExperience: true,
     services: true,
     teamMembers: true,
     branding: true
@@ -220,7 +220,7 @@ const GlobalSearch = ({ onResultClick }) => {
   // Get data from Redux store
   const { proposals } = useSelector(state => state.proposals);
   const { clients } = useSelector(state => state.clients);
-  const { caseStudies } = useSelector(state => state.caseStudies);
+  const { firmExperience } = useSelector(state => state.firmExperience);
   const { services } = useSelector(state => state.services);
   const { teamMembers } = useSelector(state => state.teamMembers);
   const { brandingTemplates } = useSelector(state => state.branding);
@@ -228,7 +228,7 @@ const GlobalSearch = ({ onResultClick }) => {
   const filterOptions = [
     { key: 'proposals', label: 'Your Proposals', icon: FiFileText },
     { key: 'clients', label: 'Clients', icon: FiUsers },
-    { key: 'caseStudies', label: 'Case Studies', icon: FiStar },
+    { key: 'firmExperience', label: 'Firm Experience', icon: FiStar },
     { key: 'services', label: 'Services', icon: FiBriefcase },
     { key: 'teamMembers', label: 'Team Members', icon: FiUsers },
     { key: 'branding', label: 'Branding & Templates', icon: FiSettings }
@@ -293,20 +293,21 @@ const GlobalSearch = ({ onResultClick }) => {
       });
     }
 
-    // Search in case studies
-    if (activeFilters.caseStudies) {
-      caseStudies.forEach(caseStudy => {
-        if (caseStudy.title?.toLowerCase().includes(term) ||
-            caseStudy.client?.toLowerCase().includes(term) ||
-            caseStudy.description?.toLowerCase().includes(term)) {
+    // Search in firm experience
+    if (activeFilters.firmExperience) {
+      firmExperience.forEach(experience => {
+        if (experience.client?.toLowerCase().includes(term) ||
+            experience.description?.toLowerCase().includes(term) ||
+            experience.sector?.toLowerCase().includes(term) ||
+            (Array.isArray(experience.keywords) && experience.keywords.some(keyword => keyword.toLowerCase().includes(term)))) {
           results.push({
-            id: caseStudy.id,
-            type: 'caseStudy',
-            title: caseStudy.title,
-            description: `${caseStudy.client} - ${caseStudy.description?.substring(0, 100)}...`,
-            category: 'Case Studies',
+            id: experience.id,
+            type: 'firmExperience',
+            title: experience.client,
+            description: `${experience.year} - ${experience.sector} - ${experience.description?.substring(0, 100)}...`,
+            category: 'Firm Experience',
             icon: FiStar,
-            data: caseStudy
+            data: experience
           });
         }
       });
@@ -368,7 +369,7 @@ const GlobalSearch = ({ onResultClick }) => {
     }
 
     return results.slice(0, 20); // Limit to 20 results
-  }, [searchTerm, activeFilters, proposals, clients, caseStudies, services, teamMembers, brandingTemplates]);
+  }, [searchTerm, activeFilters, proposals, clients, firmExperience, services, teamMembers, brandingTemplates]);
 
   const handleFilterChange = (filterKey) => {
     setActiveFilters(prev => ({
@@ -385,7 +386,7 @@ const GlobalSearch = ({ onResultClick }) => {
     setActiveFilters({
       proposals: false,
       clients: false,
-      caseStudies: false,
+      firmExperience: false,
       services: false,
       teamMembers: false,
       branding: false
@@ -396,7 +397,7 @@ const GlobalSearch = ({ onResultClick }) => {
     setActiveFilters({
       proposals: true,
       clients: true,
-      caseStudies: true,
+      firmExperience: true,
       services: true,
       teamMembers: true,
       branding: true
@@ -429,7 +430,7 @@ const GlobalSearch = ({ onResultClick }) => {
         <SearchIcon size={18} />
         <SearchInput
           type="text"
-          placeholder="Search proposals, clients, case studies, services..."
+          placeholder="Search proposals, clients, firm experience, services..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);

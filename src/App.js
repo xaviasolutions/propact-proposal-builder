@@ -219,7 +219,7 @@ function AppContent() {
         }
         break;
       case 'client':
-      case 'caseStudy':
+      case 'firmExperience':
       case 'service':
       case 'teamMember':
         setActiveTab('content');

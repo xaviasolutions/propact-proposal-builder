@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import styled from 'styled-components';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -138,6 +138,26 @@ const SelectorTitle = styled.h4`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  background: white;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+  
+  &::placeholder {
+    color: #999;
+  }
 `;
 
 const ItemGrid = styled.div`
@@ -485,9 +505,10 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [content, setContent] = useState(section.content);
   const [selectedCoverId, setSelectedCoverId] = useState(null);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
-  const [selectedCaseStudies, setSelectedCaseStudies] = useState([]);
+  const [selectedFirmExperience, setSelectedFirmExperience] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [selectedPreSavedContent, setSelectedPreSavedContent] = useState([]);
+  const [firmExperienceSearch, setFirmExperienceSearch] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
@@ -551,11 +572,52 @@ const SectionEditor = ({ section, onUpdate }) => {
   
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
-  const caseStudies = useSelector(state => state.caseStudies.caseStudies);
+  const firmExperience = useSelector(state => state.firmExperience.firmExperience);
   const services = useSelector(state => state.services.services);
   const clients = useSelector(state => state.clients.clients);
   const currentProposal = useSelector(state => state.proposals.currentProposal);
   const preSavedContent = useSelector(state => state.preSavedContent?.items || []);
+
+  // Filter firm experience based on search
+  const filteredFirmExperience = useMemo(() => {
+    if (!firmExperienceSearch.trim()) {
+      return firmExperience;
+    }
+    const searchTerm = firmExperienceSearch.toLowerCase();
+    return firmExperience.filter(experience => {
+      // Search in client name
+      if (experience.client?.toLowerCase().includes(searchTerm)) return true;
+      
+      // Search in year
+      if (experience.year?.toString().includes(searchTerm)) return true;
+      
+      // Search in sector
+      if (Array.isArray(experience.sector)) {
+        if (experience.sector.some(sector => sector.toLowerCase().includes(searchTerm))) return true;
+      } else if (experience.sector?.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      
+      // Search in description
+      if (experience.description?.toLowerCase().includes(searchTerm)) return true;
+      
+      // Search in team members
+      if (Array.isArray(experience.teamMembers)) {
+        if (experience.teamMembers.some(member => member.toLowerCase().includes(searchTerm))) return true;
+      } else if (experience.teamMembers?.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      
+      // Search in keywords
+      if (Array.isArray(experience.keywords)) {
+        if (experience.keywords.some(keyword => keyword.toLowerCase().includes(searchTerm))) return true;
+      } else if (experience.keywords?.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      
+      return false;
+    });
+  }, [firmExperience, firmExperienceSearch]);
 
   useEffect(() => {
     setTitle(section.title);
@@ -567,8 +629,8 @@ const SectionEditor = ({ section, onUpdate }) => {
     if (section.selectedTeamMembers) {
       setSelectedTeamMembers(section.selectedTeamMembers);
     }
-    if (section.selectedCaseStudies) {
-      setSelectedCaseStudies(section.selectedCaseStudies);
+    if (section.selectedFirmExperience) {
+      setSelectedFirmExperience(section.selectedFirmExperience);
     }
     if (section.selectedServices) {
       setSelectedServices(section.selectedServices);
@@ -643,6 +705,11 @@ const SectionEditor = ({ section, onUpdate }) => {
     }
   }, [section, covers]);
 
+  // Clear search when section type changes
+  useEffect(() => {
+    setFirmExperienceSearch('');
+  }, [type]);
+
   const handleSave = useCallback(async () => {
     if (!hasChanges) return;
     
@@ -670,7 +737,7 @@ const SectionEditor = ({ section, onUpdate }) => {
         type,
         content,
         selectedTeamMembers,
-        selectedCaseStudies,
+        selectedFirmExperience,
         selectedServices,
         selectedCoverId,
         tableData: type === 'table' ? tableData : section.tableData,
@@ -712,7 +779,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [hasChanges, title, type, content, selectedTeamMembers, selectedCaseStudies, selectedServices, selectedCoverId, tableData, tableTitle, tableDescription, tableNote, tablePageBreak, feeType, includeWorkstream, fixedFeeContent, hourlyFeeContent, cappedFeeContent, workstreamContent, hourlyRates, translationRate, translationContent, includeTaxes, taxContent, vatRate, maxRevisions, maxHours, assumptions, workstreams, includeDiscountedRates, includeTranslation, currency, positionHeader, standardRateHeader, assumptionsTitle, additionalDetailsTitle, section, onUpdate]);
+  }, [hasChanges, title, type, content, selectedTeamMembers, selectedFirmExperience, selectedServices, selectedCoverId, tableData, tableTitle, tableDescription, tableNote, tablePageBreak, feeType, includeWorkstream, fixedFeeContent, hourlyFeeContent, cappedFeeContent, workstreamContent, hourlyRates, translationRate, translationContent, includeTaxes, taxContent, vatRate, maxRevisions, maxHours, assumptions, workstreams, includeDiscountedRates, includeTranslation, currency, positionHeader, standardRateHeader, assumptionsTitle, additionalDetailsTitle, section, onUpdate]);
 
   // Autosave with debouncing
   const triggerAutosave = useCallback(() => {
@@ -808,7 +875,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const generateTeamContent = () => {
     if (selectedTeamMembers.length === 0) return '';
     
-    let teamContent = '<h3>Our Team</h3>';
+    let teamContent = '';
     selectedTeamMembers.forEach(memberId => {
       const member = teamMembers.find(tm => tm.id === memberId);
       if (member) {
@@ -829,7 +896,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const generateCVContent = () => {
     if (selectedTeamMembers.length === 0) return '';
     
-    let cvContent = '<h3>Team CVs</h3>';
+    let cvContent = '';
     selectedTeamMembers.forEach(memberId => {
       const member = teamMembers.find(tm => tm.id === memberId);
       if (member) {
@@ -850,30 +917,29 @@ const SectionEditor = ({ section, onUpdate }) => {
     return cvContent;
   };
 
-  const generateCaseStudyContent = () => {
-    if (selectedCaseStudies.length === 0) return '';
+  const generateFirmExperienceContent = () => {
+    if (selectedFirmExperience.length === 0) return '';
     
-    let caseStudyContent = '<h3>Case Studies</h3>';
-    selectedCaseStudies.forEach(caseStudyId => {
-      const caseStudy = caseStudies.find(cs => cs.id === caseStudyId);
-      if (caseStudy) {
-        caseStudyContent += `
+    let firmExperienceContent = '';
+    selectedFirmExperience.forEach(experienceId => {
+      const experience = firmExperience.find(exp => exp.id === experienceId);
+      if (experience) {
+        firmExperienceContent += `
           <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e0e0e0; border-radius: 4px;">
-            <h4>${caseStudy.title}</h4>
-            <p><strong>Client:</strong> ${caseStudy.client || 'Not specified'}</p>
-            <p><strong>Duration:</strong> ${caseStudy.duration || 'Not specified'}</p>
-            <div>${caseStudy.description || 'No description available'}</div>
+            <h4>${experience.client}</h4>
+            <p><strong>Year:</strong> ${experience.year || 'Not specified'}</p>
+            <div>${experience.description || 'No description available'}</div>
           </div>
         `;
       }
     });
-    return caseStudyContent;
+    return firmExperienceContent;
   };
 
   const generateServiceContent = () => {
     if (selectedServices.length === 0) return '';
     
-    let serviceContent = '<h3>Our Services</h3>';
+    let serviceContent = '';
     selectedServices.forEach(serviceId => {
       const service = services.find(s => s.id === serviceId);
       if (service) {
@@ -958,7 +1024,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'fees', label: 'Fees' },
     { value: 'team', label: 'Our Team' },
     { value: 'cvs', label: 'Team CVs' },
-    { value: 'case-study', label: 'Case Study' },
+    { value: 'firm-experience', label: 'Firm Experience' },
     // { value: 'services', label: 'Services' },
     { value: 'table', label: 'Table Section' },
 
@@ -1117,39 +1183,60 @@ const SectionEditor = ({ section, onUpdate }) => {
         </SelectorContainer>
       )}
 
-      {/* Case Study Selection */}
-      {type === 'case-study' && (
+      {/* Firm Experience Selection */}
+      {type === 'firm-experience' && (
         <SelectorContainer>
           <SelectorTitle>
             <FiBriefcase />
-            Select Case Studies
+            Select Firm Experience
           </SelectorTitle>
+          <SearchInput
+            type="text"
+            placeholder="Search by client, year, sector, team members, keywords, or description..."
+            value={firmExperienceSearch}
+            onChange={(e) => setFirmExperienceSearch(e.target.value)}
+          />
           <ItemGrid>
-            {caseStudies.map(caseStudy => (
-              <ItemCard
-                key={caseStudy.id}
-                className={selectedCaseStudies.includes(caseStudy.id) ? 'selected' : ''}
-                onClick={() => {
-                  const newSelection = selectedCaseStudies.includes(caseStudy.id)
-                    ? selectedCaseStudies.filter(id => id !== caseStudy.id)
-                    : [...selectedCaseStudies, caseStudy.id];
-                  setSelectedCaseStudies(newSelection);
-                  setHasChanges(true);
-                }}
-              >
-                <ItemTitle>{caseStudy.title}</ItemTitle>
-                <ItemSubtitle>{caseStudy.client || 'Client not specified'}</ItemSubtitle>
-                <ItemPreview>{stripHtmlTags(caseStudy.description || '').substring(0, 100)}...</ItemPreview>
-              </ItemCard>
-            ))}
+            {filteredFirmExperience.length > 0 ? (
+              filteredFirmExperience.map(experience => (
+                <ItemCard
+                  key={experience.id}
+                  className={selectedFirmExperience.includes(experience.id) ? 'selected' : ''}
+                  onClick={() => {
+                    const newSelection = selectedFirmExperience.includes(experience.id)
+                      ? selectedFirmExperience.filter(id => id !== experience.id)
+                      : [...selectedFirmExperience, experience.id];
+                    setSelectedFirmExperience(newSelection);
+                    setHasChanges(true);
+                  }}
+                >
+                  <ItemTitle>{experience.client}</ItemTitle>
+                  <ItemSubtitle>{experience.year} - {experience.sector || 'Sector not specified'}</ItemSubtitle>
+                  <ItemPreview>{stripHtmlTags(experience.description || '').substring(0, 100)}...</ItemPreview>
+                </ItemCard>
+              ))
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#666', 
+                fontStyle: 'italic', 
+                padding: '40px 20px',
+                gridColumn: '1 / -1'
+              }}>
+                {firmExperienceSearch.trim() ? 
+                  `No firm experience found matching "${firmExperienceSearch}"` : 
+                  'No firm experience available'
+                }
+              </div>
+            )}
           </ItemGrid>
-          {selectedCaseStudies.length > 0 && (
+          {selectedFirmExperience.length > 0 && (
             <TableButton onClick={() => {
-              const caseStudyContent = generateCaseStudyContent();
-              setContent(content + caseStudyContent);
+              const firmExperienceContent = generateFirmExperienceContent();
+              setContent(content + firmExperienceContent);
               setHasChanges(true);
             }}>
-              Insert Selected Case Studies
+              Insert Selected Firm Experience
             </TableButton>
           )}
         </SelectorContainer>

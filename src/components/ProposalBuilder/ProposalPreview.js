@@ -221,20 +221,20 @@ const ServicePrice = styled.div`
   color: ${props => props.accentColor || '#28a745'};
 `;
 
-const CaseStudyCard = styled.div`
+const FirmExperienceCard = styled.div`
   background: #f8f9fa;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
 `;
 
-const CaseStudyTitle = styled.h4`
+const FirmExperienceTitle = styled.h4`
   font-size: 20px;
   color: ${props => props.primaryColor || '#007bff'};
   margin-bottom: 10px;
 `;
 
-const CaseStudyClient = styled.p`
+const FirmExperienceClient = styled.p`
   font-size: 14px;
   color: #666;
   margin-bottom: 10px;
@@ -246,7 +246,7 @@ const ProposalPreview = (props) => {
   const { currentBranding } = useSelector(state => state.branding);
   const { services } = useSelector(state => state.services);
   const { teamMembers } = useSelector(state => state.teamMembers);
-  const { caseStudies } = useSelector(state => state.caseStudies);
+  const { firmExperience } = useSelector(state => state.firmExperience);
 
   if (!currentProposal) {
     return (
@@ -375,31 +375,25 @@ const ProposalPreview = (props) => {
           </div>
         );
 
-      case 'case-study':
+      case 'firm-experience':
       case 'case-studies':
       case 'experience':
         return (
           <div>
             <div dangerouslySetInnerHTML={{ __html: section.content }} />
-            {caseStudies.length > 0 ? (
-              <div>
-                {caseStudies.map(caseStudy => (
-                  <CaseStudyCard key={caseStudy.id}>
-                    <CaseStudyTitle primaryColor={primaryColor}>{caseStudy.title}</CaseStudyTitle>
-                    <CaseStudyClient>Client: {caseStudy.client}</CaseStudyClient>
-                    <p>{caseStudy.description}</p>
-                    {caseStudy.results && (
-                      <div style={{ marginTop: '15px' }}>
-                        <strong>Results:</strong>
-                        <p>{caseStudy.results}</p>
-                      </div>
-                    )}
-                  </CaseStudyCard>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: '#666', fontStyle: 'italic' }}>No case studies added yet. Add case studies in the Content Manager.</p>
-            )}
+            {firmExperience.length > 0 ? (
+            <div>
+              {firmExperience.map(experience => (
+                <FirmExperienceCard key={experience.id}>
+                  <FirmExperienceTitle primaryColor={primaryColor}>{experience.client}</FirmExperienceTitle>
+                  <FirmExperienceClient>Year: {experience.year} | Sector: {experience.sector}</FirmExperienceClient>
+                  <p>{experience.description}</p>
+                </FirmExperienceCard>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: '#666', fontStyle: 'italic' }}>No firm experience added yet. Add firm experience in the Content Manager.</p>
+          )}
           </div>
         );
 
