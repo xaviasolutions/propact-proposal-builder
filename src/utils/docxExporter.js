@@ -532,39 +532,27 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
     })]
   }));
 
-  // Add addressee from branding template (Company Name field)
-  if (branding?.companyName) {
+  // Add address fields from branding data
+  // FIXED: Now dynamically injects actual address values instead of placeholders
+  if (branding?.address) {
     paragraphs.push(new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({ 
-        text: branding.companyName,
+        text: branding.address,
         font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
         size: 22
       })]
-    }));
-  } else {
-    // Fallback placeholder if no company name
-    paragraphs.push(new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: '[Addressee]' })]
     }));
   }
   
-  // Add company address from branding template (Header Text field)
-  if (branding?.headerText) {
+  if (branding?.companyAddress) {
     paragraphs.push(new Paragraph({
       spacing: { after: 400 },
       children: [new TextRun({ 
-        text: branding.headerText,
+        text: branding.companyAddress,
         font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
         size: 22
       })]
-    }));
-  } else {
-    // Fallback placeholder if no header text
-    paragraphs.push(new Paragraph({
-      spacing: { after: 400 },
-      children: [new TextRun({ text: '[Company Address]' })]
     }));
   }
 
@@ -590,7 +578,24 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
 
   // Add cover content if provided
   if (coverTemplate.content) {
-    const htmlParagraphs = convertHtmlToDocxParagraphs(coverTemplate.content, branding);
+    // FIXED: Replace placeholders in cover content with actual branding values
+    let processedContent = coverTemplate.content;
+    
+    // Replace company name placeholder
+    if (branding?.companyName) {
+      processedContent = processedContent.replace(/\[Your Company Name\]/g, branding.companyName);
+    }
+    
+    // Replace address placeholders
+    if (branding?.address) {
+      processedContent = processedContent.replace(/\[Address\]/g, branding.address);
+    }
+    
+    if (branding?.companyAddress) {
+      processedContent = processedContent.replace(/\[Company Address\]/g, branding.companyAddress);
+    }
+    
+    const htmlParagraphs = convertHtmlToDocxParagraphs(processedContent, branding);
     paragraphs.push(...htmlParagraphs);
   }
 
@@ -1068,6 +1073,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       // Only add watermark to non-cover sections (cover sections use letterhead backgrounds instead)
       // FIXED: Watermark transparency and rotation now properly applied from brand manager settings
+      // FIXED: Address fields now dynamically injected from branding data instead of placeholders
       const watermark = section.type === 'cover' ? [] : await renderWatermark(branding);
       const contentChildren = [...watermark];
 

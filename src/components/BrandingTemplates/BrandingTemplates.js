@@ -902,6 +902,16 @@ const BrandingTemplates = () => {
                     
                     <TemplateInfo>
                       Font: {template.fonts?.primary || 'Arial, sans-serif'}
+                      {template.address && (
+                        <div style={{ marginTop: '4px' }}>
+                          Address: {template.address}
+                        </div>
+                      )}
+                      {template.companyAddress && (
+                        <div style={{ marginTop: '4px' }}>
+                          Company Address: {template.companyAddress}
+                        </div>
+                      )}
                       {template.watermark?.image && (
                         <div style={{ marginTop: '4px' }}>
                           Watermark: {Math.round((template.watermark.transparency || 0.3) * 100)}% opacity
@@ -1326,6 +1336,26 @@ const BrandingTemplates = () => {
                     value={currentBranding.companyName || ''}
                     onChange={(e) => handleInputChange('companyName', e.target.value)}
                     placeholder="Your Company Name"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Address</Label>
+                  <Input
+                    type="text"
+                    value={currentBranding.address || ''}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Your Address"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Company Address</Label>
+                  <Input
+                    type="text"
+                    value={currentBranding.companyAddress || ''}
+                    onChange={(e) => handleInputChange('companyAddress', e.target.value)}
+                    placeholder="Your Company Address"
                   />
                 </FormGroup>
 

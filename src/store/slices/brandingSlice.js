@@ -16,6 +16,8 @@ const defaultTemplates = [
     logo: null,
     watermark: null,
     companyName: 'Your Company Name',
+    address: '',
+    companyAddress: '',
     headerText: 'Professional Services',
     footerText: 'Your Trusted Partner',
     createdAt: new Date().toISOString()
@@ -35,6 +37,8 @@ const defaultTemplates = [
     logo: null,
     watermark: null,
     companyName: 'Your Company Name',
+    address: '',
+    companyAddress: '',
     headerText: 'Innovative Solutions',
     footerText: 'Building Tomorrow',
     createdAt: new Date().toISOString()
@@ -54,6 +58,8 @@ const defaultTemplates = [
     logo: null,
     watermark: null,
     companyName: 'Your Company Name',
+    address: '',
+    companyAddress: '',
     headerText: 'Creative Excellence',
     footerText: 'Crafted with Care',
     createdAt: new Date().toISOString()
@@ -82,6 +88,8 @@ const initialState = {
       processedImage: null // This will store the transparent version
     },
     companyName: 'Your Company Name',
+    address: '',
+    companyAddress: '',
     headerText: '',
     footerText: '',
     tableOfContents: {
