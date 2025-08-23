@@ -5,7 +5,7 @@
 /**
  * Apply transparency to an image and return as base64
  * @param {string} imageDataUrl - Base64 image data URL
- * @param {number} transparency - Transparency value between 0 and 1
+ * @param {number} transparency - Transparency value between 0 and 1 (where 0.75 = 75% opacity)
  * @returns {Promise<string>} - Processed image as base64 data URL
  */
 export const applyTransparency = (imageDataUrl, transparency) => {
@@ -20,7 +20,9 @@ export const applyTransparency = (imageDataUrl, transparency) => {
         canvas.width = img.width;
         canvas.height = img.height;
 
-        // Set global alpha for transparency
+        // FIXED: Set global alpha for transparency
+        // The transparency value from brand manager is already the correct opacity value
+        // For 75% opacity, transparency should be 0.75
         ctx.globalAlpha = transparency;
 
         // Draw the image with transparency

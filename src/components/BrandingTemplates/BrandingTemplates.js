@@ -907,6 +907,11 @@ const BrandingTemplates = () => {
                           Watermark: {Math.round((template.watermark.transparency || 0.3) * 100)}% opacity
                         </div>
                       )}
+                      {template.watermark?.text && (
+                        <div style={{ marginTop: '4px' }}>
+                          Text Watermark: {Math.round((template.watermark.transparency || 0.3) * 100)}% opacity
+                        </div>
+                      )}
                     </TemplateInfo>
                   </TemplateCard>
                 ))}
@@ -1078,7 +1083,7 @@ const BrandingTemplates = () => {
                           <div style={{
                             fontSize: '24px',
                             color: '#666',
-                            opacity: 1 - (currentBranding.watermark?.transparency || 0.3),
+                            opacity: currentBranding.watermark?.transparency || 0.3,
                             transform: `rotate(${currentBranding.watermark?.rotation || 0}deg)`,
                             display: 'inline-block'
                           }}>
@@ -1114,6 +1119,9 @@ const BrandingTemplates = () => {
                           onChange={(e) => handleTransparencyChange(parseFloat(e.target.value))}
                           disabled={isProcessingWatermark}
                         />
+                        <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+                          Light (5%) - Dark (95%)
+                        </div>
                       </SliderContainer>
 
                       {/* Rotation Control */}

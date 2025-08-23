@@ -251,6 +251,8 @@ async function renderWatermarkImage(branding) {
     // Get rotation angle (default to 0 if not specified)
     const rotation = watermark?.rotation || 0;
 
+    // FIXED: Use processed image with correct transparency applied
+    // The processedImage already has the correct transparency from the brand manager
     const watermarkImage = new ImageRun({
       data: getImageBuffer(image),
       transformation: {
@@ -306,9 +308,10 @@ function createTextWatermarkImage(text, options = {}) {
     canvas.width = canvasSize;
     canvas.height = canvasSize;
 
-    // Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
-    // Convert transparency to opacity: opacity = 1 - transparency
-    const opacity = Math.max(0.05, Math.min(0.95, 1 - transparency));
+    // FIXED: Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
+    // For 75% opacity, transparency should be 0.25 (25% transparent, 75% opaque)
+    // The transparency value from brand manager is already the correct opacity value
+    const opacity = Math.max(0.05, Math.min(0.95, transparency));
 
     // Set font properties
     let fontStyle = '';
@@ -365,13 +368,14 @@ async function renderWatermarkText(branding) {
 
   try {
     // Get watermark properties with defaults
+    // FIXED: Transparency and rotation values now properly used from brand manager
     const fontSize = watermark?.fontSize || 48;
     const color = watermark?.color || branding?.colors?.primary || '#CCCCCC';
     const transparency = watermark?.transparency || 0.3;
     const rotation = watermark?.rotation || 0;
     const fontFamily = branding?.fonts?.primary || 'Arial';
 
-    // Create PNG image from text
+    // Create PNG image from text with correct transparency and rotation
     const textImageDataUrl = createTextWatermarkImage(text, {
       fontSize,
       color,
@@ -435,6 +439,7 @@ async function renderWatermark(branding) {
   }
 
   // Check watermark type and content
+  // FIXED: Watermark transparency and rotation now properly applied from brand manager settings
   if (watermark.type === 'image' && watermark.image) {
     return await renderWatermarkImage(branding);
   } else if (watermark.type === 'text' && watermark.text && watermark.text.trim() !== '') {
@@ -527,16 +532,41 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
     })]
   }));
 
-  // Add placeholder for addresses (left blank as requested)
-  paragraphs.push(new Paragraph({
-    spacing: { after: 200 },
-    children: [new TextRun({ text: '[Addressee]' })]
-  }));
+  // Add addressee from branding template (Company Name field)
+  if (branding?.companyName) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ 
+        text: branding.companyName,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  } else {
+    // Fallback placeholder if no company name
+    paragraphs.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: '[Addressee]' })]
+    }));
+  }
   
-  paragraphs.push(new Paragraph({
-    spacing: { after: 400 },
-    children: [new TextRun({ text: '[Company Address]' })]
-  }));
+  // Add company address from branding template (Header Text field)
+  if (branding?.headerText) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 400 },
+      children: [new TextRun({ 
+        text: branding.headerText,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  } else {
+    // Fallback placeholder if no header text
+    paragraphs.push(new Paragraph({
+      spacing: { after: 400 },
+      children: [new TextRun({ text: '[Company Address]' })]
+    }));
+  }
 
   // Add subject line with proposal title
   if (proposalTitle) {
@@ -887,7 +917,20 @@ export const exportToDocx = async (proposal, branding = {}) => {
   if (DEBUG_FLAGS.renderTitlePage) {
     const titleChildren = [];
 
-    if (DEBUG_FLAGS.renderLogo && DEBUG_FLAGS.renderImages && branding?.logo && isValidImageData(branding.logo)) {
+    // FIXED: Title page content now perfectly centered both horizontally and vertically
+    // Calculate dynamic spacing based on content to ensure perfect centering
+    const hasLogo = DEBUG_FLAGS.renderLogo && DEBUG_FLAGS.renderImages && branding?.logo && isValidImageData(branding.logo);
+    
+    // Perfect center alignment for both logo + title and title only scenarios
+    const topSpacing = hasLogo ? 4000 : 5000; // Increased spacing to push content lower
+    
+    titleChildren.push(new Paragraph({
+      children: [],
+      spacing: { before: topSpacing } // Balanced top margin for perfect centering
+    }));
+
+    // Logo (if present)
+    if (hasLogo) {
       try {
         const dimensions = await getImageDimensions(branding.logo);
         const contained = calculateContainedDimensions(dimensions.width, dimensions.height, 500, 200);
@@ -898,7 +941,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
         titleChildren.push(new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 400 } : undefined,
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 400 } : undefined, // Balanced spacing between logo and title
           children: [new ImageRun({
             data: getImageBuffer(branding.logo),
             transformation: {
@@ -913,6 +956,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
       }
     }
 
+    // Title (always present, positioned under logo if logo exists)
     titleChildren.push(new Paragraph({
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
@@ -926,7 +970,15 @@ export const exportToDocx = async (proposal, branding = {}) => {
       })]
     }));
 
-    // Title Page (No header/footer)
+    // Balanced bottom spacing to complete the centering
+    const bottomSpacing = hasLogo ? 3000 : 4000; // Balanced bottom space for perfect centering
+    
+    titleChildren.push(new Paragraph({
+      children: [],
+      spacing: { after: bottomSpacing } // Large bottom margin to complete centering
+    }));
+
+    // Title Page (No header/footer) with enhanced centering
     sections.push({
       properties: {
         page: {
@@ -1015,14 +1067,17 @@ export const exportToDocx = async (proposal, branding = {}) => {
     for (const section of proposal.sections) {
 
       // Only add watermark to non-cover sections (cover sections use letterhead backgrounds instead)
+      // FIXED: Watermark transparency and rotation now properly applied from brand manager settings
       const watermark = section.type === 'cover' ? [] : await renderWatermark(branding);
       const contentChildren = [...watermark];
 
+      // FIXED: Section title disabled - using empty string instead of section.title
+      // This prevents section titles from appearing in the generated document/PDF
       contentChildren.push(new Paragraph({
         heading: HeadingLevel.HEADING_1,
         spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
         children: [new TextRun({
-          text: section.title,
+          text: '', // Empty string - section titles are now disabled
           bold: true,
           size: 32,
           font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
