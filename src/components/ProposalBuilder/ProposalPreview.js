@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
+import store from '../../store';
 
 const PreviewContainer = styled.div`
   flex: 2;
@@ -247,6 +248,7 @@ const ProposalPreview = (props) => {
   const { services } = useSelector(state => state.services);
   const { teamMembers } = useSelector(state => state.teamMembers);
   const { firmExperience } = useSelector(state => state.firmExperience);
+  const { clients } = store.getState().clients;
 
   if (!currentProposal) {
     return (
@@ -268,6 +270,21 @@ const ProposalPreview = (props) => {
   const fontFamily = branding?.fonts?.primary || 'Arial, sans-serif';
 
   const sortedSections = [...currentProposal.sections].sort((a, b) => a.order - b.order);
+
+  // Function to replace client name placeholders in content
+  const processContentWithClientName = (content) => {
+    if (!content) return content;
+    
+    // Get the client based on the current proposal's clientId
+    const proposalClientId = currentProposal.clientId;
+    const currentClient = proposalClientId 
+      ? clients.clients.find(client => client.id === proposalClientId)
+      : clients.clients[0];
+    
+    const clientName = currentClient?.name || "Client";
+    
+    return content.replace(/\[Client Name\]/g, clientName);
+  };
 
   const renderSectionContent = (section) => {
     switch (section.type) {
@@ -407,7 +424,7 @@ const ProposalPreview = (props) => {
             lineHeight: '1.8',
             fontSize: '16px'
           }}>
-            <div dangerouslySetInnerHTML={{ __html: section.content || '<p style="color: #666; font-style: italic;">No cover letter content added yet.</p>' }} />
+            <div dangerouslySetInnerHTML={{ __html: processContentWithClientName(section.content) || '<p style="color: #666; font-style: italic;">No cover letter content added yet.</p>' }} />
           </div>
         );
 

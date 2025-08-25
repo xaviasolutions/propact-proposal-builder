@@ -23,6 +23,7 @@ import {
   TableLayoutType,
 } from 'docx';
 import { saveAs } from 'file-saver';
+import store from '../store';
 
 // DEBUG FLAGS - Set to false to disable specific features
 const DEBUG_FLAGS = {
@@ -492,7 +493,7 @@ function createLetterheadBackground(backgroundImageData) {
   }
 }
 
-function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
+function createCoverLetterContent(coverTemplate, proposalTitle, branding, proposal) {
   const paragraphs = [];
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -580,6 +581,21 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
   if (coverTemplate.content) {
     // FIXED: Replace placeholders in cover content with actual branding values
     let processedContent = coverTemplate.content;
+    
+    // Get client name from Redux store based on proposal's clientId
+    const state = store.getState();
+    const clients = state.clients;
+    const proposalClientId = proposal.clientId;
+    
+    // Find the client that matches the proposal's clientId
+    const currentClient = proposalClientId 
+      ? clients.clients.find(client => client.id === proposalClientId)
+      : clients.clients[0];
+    
+    const clientName = currentClient?.name || "Client";
+    
+    // Replace client name placeholder
+    processedContent = processedContent.replace(/\[Client Name\]/g, clientName);
     
     // Replace company name placeholder
     if (branding?.companyName) {
@@ -1504,9 +1520,9 @@ export const exportToDocx = async (proposal, branding = {}) => {
       // Handle cover sections with Letterheads (letterheads)
       else if (section.type === 'cover') {
         // Add cover content with new format
-        if (section.coverTemplate) {
-          const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding);
-          contentChildren.push(...coverParagraphs);
+                 if (section.coverTemplate) {
+           const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding, proposal);
+           contentChildren.push(...coverParagraphs);
         } else if (section.content) {
           const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
           contentChildren.push(...htmlParagraphs);
