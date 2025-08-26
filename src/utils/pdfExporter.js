@@ -76,6 +76,29 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
                   .replace(/\[Company Address\]/g, companyAddress);
               }
             });
+
+            // Normalize paragraph spacing and alignment similar to DOCX
+            const blockEls = clonedElement.querySelectorAll('p, div, li');
+            blockEls.forEach(el => {
+              const text = (el.textContent || '').trim();
+              const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(text);
+              el.style.marginTop = '0';
+              el.style.marginBottom = isSignOff ? '2px' : '4px';
+              el.style.lineHeight = '1.3';
+              el.style.textAlign = 'left';
+              // Ensure no leading indent and trim leading spaces
+              el.style.textIndent = '0';
+              if (el.firstChild && el.firstChild.nodeType === Node.TEXT_NODE) {
+                el.firstChild.nodeValue = el.firstChild.nodeValue.replace(/^\s+/, '');
+              }
+            });
+
+            // Remove completely empty paragraphs/divs to prevent stray gaps
+            clonedElement.querySelectorAll('p, div').forEach(el => {
+              if (!el.textContent || el.textContent.trim() === '') {
+                el.parentNode && el.parentNode.removeChild(el);
+              }
+            });
           }
         }
       });

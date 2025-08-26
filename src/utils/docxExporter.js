@@ -522,10 +522,10 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
     console.log('No right side text found in cover template');
   }
 
-  // Add date (right-aligned)
+  // Add date (left-aligned) with tight spacing to match SS1
   paragraphs.push(new Paragraph({
-    alignment: AlignmentType.RIGHT,
-    spacing: { after: 400 },
+    alignment: AlignmentType.LEFT,
+    spacing: { after: 120 },
     children: [new TextRun({
       text: currentDate,
       font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -537,7 +537,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
   // FIXED: Now dynamically injects actual address values instead of placeholders
   if (branding?.address) {
     paragraphs.push(new Paragraph({
-      spacing: { after: 200 },
+      spacing: { after: 120 },
       children: [new TextRun({ 
         text: branding.address,
         font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -548,7 +548,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
   
   if (branding?.companyAddress) {
     paragraphs.push(new Paragraph({
-      spacing: { after: 400 },
+      spacing: { after: 160 },
       children: [new TextRun({ 
         text: branding.companyAddress,
         font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -560,7 +560,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
   // Add subject line with proposal title
   if (proposalTitle) {
     paragraphs.push(new Paragraph({
-      spacing: { after: 200 },
+      spacing: { after: 120 },
       children: [
         new TextRun({
           text: 'Subject: ',
@@ -824,9 +824,13 @@ function processNonTableContent(node, branding) {
       spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
     }));
   } else if (tag === 'p') {
+    const plain = node.textContent?.trim() || '';
+    const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(plain);
     elements.push(new Paragraph({
+      alignment: AlignmentType.LEFT,
+      // Remove first-line indent per user request
       children: parseTextContent(node, branding),
-      spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
     }));
   } else if (tag === 'br') {
     elements.push(new Paragraph({ children: [] }));
@@ -860,9 +864,12 @@ function processNonTableContent(node, branding) {
       // If div only contains inline content, treat it as a paragraph
       const textContent = parseTextContent(node, branding);
       if (textContent.length > 0) {
+        const plain = node.textContent?.trim() || '';
+        const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(plain);
         elements.push(new Paragraph({
+          alignment: AlignmentType.LEFT,
           children: textContent,
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
         }));
       }
     }
@@ -870,9 +877,11 @@ function processNonTableContent(node, branding) {
     // For other elements, extract text content
     const textContent = node.textContent?.trim();
     if (textContent) {
+      const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(textContent);
       elements.push(new Paragraph({
+        alignment: AlignmentType.LEFT,
         children: parseTextContent(node, branding),
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
       }));
     }
   }
@@ -1099,17 +1108,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       // FIXED: Section title disabled - using empty string instead of section.title
       // This prevents section titles from appearing in the generated document/PDF
-      contentChildren.push(new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
-        children: [new TextRun({
-          text: '', // Empty string - section titles are now disabled
-          bold: true,
-          size: 32,
-          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-          color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
-        })]
-      }));
+      // Remove empty heading paragraph to avoid extra spacing
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
@@ -1227,23 +1226,25 @@ export const exportToDocx = async (proposal, branding = {}) => {
       else if (section.type === 'fees') {
         const currency = section.currency || 'OMR';
         
-        // Add fee structure heading
-        const feeTypeLabel = {
-          'capped': 'Capped Fees',
-          'fixed': 'Fixed Fees', 
-          'hourly': 'Hourly Billing Without Caps'
-        }[section.feeType] || 'Fee Structure';
-        
-        contentChildren.push(new Paragraph({
-          heading: HeadingLevel.HEADING_2,
-          spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
-          children: [new TextRun({
-            text: feeTypeLabel,
-            bold: true,
-            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
-          })]
-        }));
+        // Optional fee structure heading: render only if explicitly enabled
+        if (section.showFeeHeading === true) {
+          const feeTypeLabel = {
+            'capped': 'Capped Fees',
+            'fixed': 'Fixed Fees', 
+            'hourly': 'Hourly Billing Without Caps'
+          }[section.feeType] || 'Fee Structure';
+          
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+            children: [new TextRun({
+              text: feeTypeLabel,
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+        }
         
         // Add Additional Details section BEFORE pricing components
         if (section.feeType && section[`${section.feeType}FeeContent`]) {
