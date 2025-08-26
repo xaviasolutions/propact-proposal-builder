@@ -825,15 +825,19 @@ function processNonTableContent(node, branding) {
     }));
   } else if (tag === 'p') {
     const plain = node.textContent?.trim() || '';
+    const childrenRuns = parseTextContent(node, branding);
+    if (!plain || childrenRuns.length === 0) {
+      // Skip empty paragraphs to avoid extra gaps
+      return elements;
+    }
     const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(plain);
     elements.push(new Paragraph({
       alignment: AlignmentType.LEFT,
-      // Remove first-line indent per user request
-      children: parseTextContent(node, branding),
-      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
+      children: childrenRuns,
+      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
     }));
   } else if (tag === 'br') {
-    elements.push(new Paragraph({ children: [] }));
+    // Ignore single line breaks to prevent artificial empty paragraphs
   } else if (tag === 'ul' || tag === 'ol') {
     const listItems = node.querySelectorAll('li');
     listItems.forEach((li, index) => {
@@ -869,7 +873,7 @@ function processNonTableContent(node, branding) {
         elements.push(new Paragraph({
           alignment: AlignmentType.LEFT,
           children: textContent,
-          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
+          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
         }));
       }
     }
@@ -881,7 +885,7 @@ function processNonTableContent(node, branding) {
       elements.push(new Paragraph({
         alignment: AlignmentType.LEFT,
         children: parseTextContent(node, branding),
-        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 40, after: 40 } : { after: 60 }) : undefined
+        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
       }));
     }
   }
@@ -895,7 +899,10 @@ function parseTextContent(node, branding, styles = {}) {
 
   node.childNodes.forEach((child) => {
     if (child.nodeType === Node.TEXT_NODE) {
-      const text = child.textContent;
+      // Normalize leading whitespace to avoid unintended paragraph indents/back spacing
+      let text = child.textContent || '';
+      text = text.replace(/\u00A0/g, ' '); // replace non-breaking spaces
+      text = text.replace(/^\s+/, ''); // trim leading spaces within text nodes
       if (text.trim()) {
         children.push(new TextRun({
           text,
@@ -1516,11 +1523,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
         
         // Additional Details section has been moved to the beginning of the fees section
         
-        // Add spacing after fees section
-        contentChildren.push(new Paragraph({
-          children: [],
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
-        }));
+        // Remove artificial spacer after fees section to avoid extra gap
       }
       // Handle cover sections with Letterheads (letterheads)
       else if (section.type === 'cover') {

@@ -83,13 +83,17 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
               const text = (el.textContent || '').trim();
               const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(text);
               el.style.marginTop = '0';
-              el.style.marginBottom = isSignOff ? '2px' : '4px';
-              el.style.lineHeight = '1.3';
+              el.style.marginBottom = isSignOff ? '8px' : '12px';
+              el.style.lineHeight = '1.35';
               el.style.textAlign = 'left';
               // Ensure no leading indent and trim leading spaces
               el.style.textIndent = '0';
-              if (el.firstChild && el.firstChild.nodeType === Node.TEXT_NODE) {
-                el.firstChild.nodeValue = el.firstChild.nodeValue.replace(/^\s+/, '');
+              // Trim leading whitespace from all text nodes inside this element
+              const walker2 = clonedDoc.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+              while (walker2.nextNode()) {
+                walker2.currentNode.nodeValue = walker2.currentNode.nodeValue
+                  .replace(/\u00A0/g, ' ')
+                  .replace(/^\s+/, '');
               }
             });
 
