@@ -83,8 +83,8 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
               const text = (el.textContent || '').trim();
               const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(text);
               el.style.marginTop = '0';
-              el.style.marginBottom = isSignOff ? '8px' : '12px';
-              el.style.lineHeight = '1.35';
+              el.style.marginBottom = isSignOff ? '18px' : '24px';
+              el.style.lineHeight = '1.32';
               el.style.textAlign = 'left';
               // Ensure no leading indent and trim leading spaces
               el.style.textIndent = '0';

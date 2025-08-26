@@ -834,7 +834,7 @@ function processNonTableContent(node, branding) {
     elements.push(new Paragraph({
       alignment: AlignmentType.LEFT,
       children: childrenRuns,
-      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
+      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
     }));
   } else if (tag === 'br') {
     // Ignore single line breaks to prevent artificial empty paragraphs
@@ -873,7 +873,7 @@ function processNonTableContent(node, branding) {
         elements.push(new Paragraph({
           alignment: AlignmentType.LEFT,
           children: textContent,
-          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
+          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
         }));
       }
     }
@@ -885,7 +885,7 @@ function processNonTableContent(node, branding) {
       elements.push(new Paragraph({
         alignment: AlignmentType.LEFT,
         children: parseTextContent(node, branding),
-        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 60, after: 80 } : { after: 100 }) : undefined
+        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
       }));
     }
   }
