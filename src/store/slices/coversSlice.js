@@ -15,19 +15,10 @@ const initialState = {
       // HTML content for the professional cover
       // Formatted to match the screenshot exactly
       content: `
-      <div style="font-family:'Times New Roman', serif; font-size:12pt; color:black; line-height:1.6;">
-        <div style="text-align:right; margin-bottom:20px;">
-          August 25, 2025
-        </div>
-        
-        <div style="margin-bottom:20px;">
-          <strong>Subject:</strong>&nbsp;&nbsp;&nbsp;&nbsp;Proposal 2
-        </div>
-        
         <div style="margin-bottom:20px;">
           Dear [Client Name],
         </div>
-        
+  
         <div style="margin-bottom:20px; text-align:left;">
         We are pleased to submit this fee proposal. Drawing on our experience with similar transactions, we have outlined the anticipated scope of work in Schedule A (the <strong>"Scope of Work"</strong>). Our team is well-equipped to provide the required legal support and services, and we have detailed our proposed fees in Schedule B.
         </div>
@@ -45,7 +36,7 @@ const initialState = {
         </div>
 
         <div style="margin-bottom:20px;">
-          Yours sincerely,
+      Yours sincerely,
         </div>
 
         <div style="margin-top:20px;">
