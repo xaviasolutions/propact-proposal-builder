@@ -505,12 +505,27 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
   console.log('Cover template data:', coverTemplate);
   console.log('Right side text:', coverTemplate?.rightSideText);
 
-  // Remove right-side labels/blue elements (subject/date) per updated layout
+  // Add right-side text if provided
+  if (coverTemplate?.rightSideText) {
+    console.log('Adding right side text:', coverTemplate.rightSideText);
+    paragraphs.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 200 },
+      children: [new TextRun({
+        text: coverTemplate.rightSideText,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 24,
+        bold: true
+      })]
+    }));
+  } else {
+    console.log('No right side text found in cover template');
+  }
 
-  // Date at top-left (single line, minimal spacing)
+  // Add date (right-aligned)
   paragraphs.push(new Paragraph({
-    alignment: AlignmentType.LEFT,
-    spacing: { after: 120 },
+    alignment: AlignmentType.RIGHT,
+    spacing: { after: 400 },
     children: [new TextRun({
       text: currentDate,
       font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -518,28 +533,49 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
     })]
   }));
 
-  // Add address fields from branding data (each line as a paragraph, tight spacing)
-  const pushMultiLine = (value) => {
-    const lines = String(value)
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(Boolean);
-    lines.forEach((line) => {
-      paragraphs.push(new Paragraph({
-        alignment: AlignmentType.LEFT,
-        spacing: { after: 120 },
-        children: [new TextRun({
-          text: line,
+  // Add address fields from branding data
+  // FIXED: Now dynamically injects actual address values instead of placeholders
+  if (branding?.address) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ 
+        text: branding.address,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  }
+  
+  if (branding?.companyAddress) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 400 },
+      children: [new TextRun({ 
+        text: branding.companyAddress,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  }
+
+  // Add subject line with proposal title
+  if (proposalTitle) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [
+        new TextRun({
+          text: 'Subject: ',
+          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+          size: 22,
+          bold: true
+        }),
+        new TextRun({
+          text: `\t\t${proposalTitle}`,
           font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
           size: 22
-        })]
-      }));
-    });
-  };
-  if (branding?.address) pushMultiLine(branding.address);
-  if (branding?.companyAddress) pushMultiLine(branding.companyAddress);
-
-  // Remove Subject line as per updated layout
+        })
+      ]
+    }));
+  }
 
   // Add cover content if provided
   if (coverTemplate.content) {
@@ -571,11 +607,13 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
       processedContent = processedContent.replace(/\[Your Company Name\]/g, branding.companyName);
     }
     
-    // IMPORTANT: Do not render address placeholders inside the cover content.
-    // We render Address and Company Address as dedicated paragraphs above.
-    processedContent = processedContent
-      .replace(/\[Address\]/g, '')
-      .replace(/\[Company Address\]/g, '');
+    // Replace address placeholders with safe HTML (convert newlines to <br/>)
+    if (address) {
+      processedContent = processedContent.replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'));
+    }
+    if (companyAddress) {
+      processedContent = processedContent.replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
+    }
     
     const htmlParagraphs = convertHtmlToDocxParagraphs(processedContent, branding);
     paragraphs.push(...htmlParagraphs);
@@ -1061,7 +1099,17 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
       // FIXED: Section title disabled - using empty string instead of section.title
       // This prevents section titles from appearing in the generated document/PDF
-      // Remove empty section title paragraph to avoid extra gaps
+      contentChildren.push(new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
+        children: [new TextRun({
+          text: '', // Empty string - section titles are now disabled
+          bold: true,
+          size: 32,
+          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+          color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
+        })]
+      }));
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
@@ -1480,20 +1528,26 @@ export const exportToDocx = async (proposal, branding = {}) => {
            const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding, proposal);
            contentChildren.push(...coverParagraphs);
         } else if (section.content) {
-          // Strip address placeholders; addresses rendered above
+          // Replace placeholders using Redux branding before converting
+          const stateBranding = store.getState()?.branding?.currentBranding || branding || {};
+          const address = (stateBranding?.address || '').trim();
+          const companyAddress = (stateBranding?.companyAddress || '').trim();
           let filledContent = section.content
-            .replace(/\[Address\]/g, '')
-            .replace(/\[Company Address\]/g, '');
+            .replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'))
+            .replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
           const htmlParagraphs = convertHtmlToDocxParagraphs(filledContent, branding);
           contentChildren.push(...htmlParagraphs);
         }
       }
       // Handle regular content sections
       else if (section.content) {
-        // Strip address placeholders; addresses handled elsewhere
+        // Replace placeholders using Redux branding before converting
+        const stateBranding = store.getState()?.branding?.currentBranding || branding || {};
+        const address = (stateBranding?.address || '').trim();
+        const companyAddress = (stateBranding?.companyAddress || '').trim();
         let filledContent = section.content
-          .replace(/\[Address\]/g, '')
-          .replace(/\[Company Address\]/g, '');
+          .replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'))
+          .replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
         const htmlParagraphs = convertHtmlToDocxParagraphs(filledContent, branding);
         contentChildren.push(...htmlParagraphs);
       }

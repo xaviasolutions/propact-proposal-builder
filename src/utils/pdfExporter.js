@@ -33,7 +33,6 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
     const stateBranding = store.getState()?.branding?.currentBranding || {};
     const address = (stateBranding?.address || '').trim();
     const companyAddress = (stateBranding?.companyAddress || '').trim();
-    const dateText = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // Try multiple canvas generation approaches
     let canvas = null;
@@ -71,34 +70,11 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
               textNodes.push(walker.currentNode);
             }
             textNodes.forEach(node => {
-              if (!node.nodeValue) return;
-              // Remove date/subject labels (blue chips) and keep addresses at their designed place
-              node.nodeValue = node.nodeValue
-                .replace(/\bSubject:\b\s*.*$/m, '')
-                .replace(/\b\d{1,2}\s+\w+\s+\d{4}\b/g, '')
-                .replace(/\[Address\]/g, address)
-                .replace(/\[Company Address\]/g, companyAddress);
-            });
-
-            // Inject a date element at the very top-left with tight spacing
-            const dateP = clonedDoc.createElement('p');
-            dateP.textContent = dateText;
-            dateP.style.margin = '0 0 6px 0';
-            dateP.style.textAlign = 'left';
-            const firstChild = clonedElement.firstElementChild;
-            if (firstChild) {
-              clonedElement.insertBefore(dateP, firstChild);
-            } else {
-              clonedElement.appendChild(dateP);
-            }
-
-            // Normalize paragraph spacing and alignment inside the cloned tree
-            const paragraphs = clonedElement.querySelectorAll('p, div, li');
-            paragraphs.forEach(el => {
-              el.style.marginTop = '0';
-              el.style.marginBottom = '8px';
-              el.style.lineHeight = '1.35';
-              el.style.textAlign = 'left';
+              if (node.nodeValue && (node.nodeValue.includes('[Address]') || node.nodeValue.includes('[Company Address]'))) {
+                node.nodeValue = node.nodeValue
+                  .replace(/\[Address\]/g, address)
+                  .replace(/\[Company Address\]/g, companyAddress);
+              }
             });
           }
         }
