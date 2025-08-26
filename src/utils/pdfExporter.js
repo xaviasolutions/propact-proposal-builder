@@ -97,6 +97,15 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
               }
             });
 
+            // Add extra margin below the Subject line for clearer separation
+            const allBlocks = clonedElement.querySelectorAll('p, div');
+            allBlocks.forEach(n => {
+              const txt = (n.textContent || '').trim();
+              if (/^Subject:\b/.test(txt)) {
+                n.style.marginBottom = '36px';
+              }
+            });
+
             // Remove completely empty paragraphs/divs to prevent stray gaps
             clonedElement.querySelectorAll('p, div').forEach(el => {
               if (!el.textContent || el.textContent.trim() === '') {

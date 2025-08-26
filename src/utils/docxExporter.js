@@ -522,10 +522,10 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
     console.log('No right side text found in cover template');
   }
 
-  // Add date (left-aligned) with tight spacing to match SS1
+  // Add date (left-aligned) with tight spacing to match SS1 (top-left)
   paragraphs.push(new Paragraph({
     alignment: AlignmentType.LEFT,
-    spacing: { after: 120 },
+    spacing: { after: 100 },
     children: [new TextRun({
       text: currentDate,
       font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -560,7 +560,8 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
   // Add subject line with proposal title
   if (proposalTitle) {
     paragraphs.push(new Paragraph({
-      spacing: { after: 120 },
+      // Extra spacing after Subject to create a clear gap before the salutation/client line
+      spacing: { after: 240 },
       children: [
         new TextRun({
           text: 'Subject: ',
