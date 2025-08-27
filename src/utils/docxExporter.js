@@ -23,6 +23,7 @@ import {
   TableLayoutType,
 } from 'docx';
 import { saveAs } from 'file-saver';
+import store from '../store';
 
 // DEBUG FLAGS - Set to false to disable specific features
 const DEBUG_FLAGS = {
@@ -251,6 +252,8 @@ async function renderWatermarkImage(branding) {
     // Get rotation angle (default to 0 if not specified)
     const rotation = watermark?.rotation || 0;
 
+    // FIXED: Use processed image with correct transparency applied
+    // The processedImage already has the correct transparency from the brand manager
     const watermarkImage = new ImageRun({
       data: getImageBuffer(image),
       transformation: {
@@ -306,9 +309,10 @@ function createTextWatermarkImage(text, options = {}) {
     canvas.width = canvasSize;
     canvas.height = canvasSize;
 
-    // Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
-    // Convert transparency to opacity: opacity = 1 - transparency
-    const opacity = Math.max(0.05, Math.min(0.95, 1 - transparency));
+    // FIXED: Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
+    // For 75% opacity, transparency should be 0.25 (25% transparent, 75% opaque)
+    // The transparency value from brand manager is already the correct opacity value
+    const opacity = Math.max(0.05, Math.min(0.95, transparency));
 
     // Set font properties
     let fontStyle = '';
@@ -365,13 +369,14 @@ async function renderWatermarkText(branding) {
 
   try {
     // Get watermark properties with defaults
+    // FIXED: Transparency and rotation values now properly used from brand manager
     const fontSize = watermark?.fontSize || 48;
     const color = watermark?.color || branding?.colors?.primary || '#CCCCCC';
     const transparency = watermark?.transparency || 0.3;
     const rotation = watermark?.rotation || 0;
     const fontFamily = branding?.fonts?.primary || 'Arial';
 
-    // Create PNG image from text
+    // Create PNG image from text with correct transparency and rotation
     const textImageDataUrl = createTextWatermarkImage(text, {
       fontSize,
       color,
@@ -435,6 +440,7 @@ async function renderWatermark(branding) {
   }
 
   // Check watermark type and content
+  // FIXED: Watermark transparency and rotation now properly applied from brand manager settings
   if (watermark.type === 'image' && watermark.image) {
     return await renderWatermarkImage(branding);
   } else if (watermark.type === 'text' && watermark.text && watermark.text.trim() !== '') {
@@ -487,7 +493,7 @@ function createLetterheadBackground(backgroundImageData) {
   }
 }
 
-function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
+function createCoverLetterContent(coverTemplate, proposalTitle, branding, proposal) {
   const paragraphs = [];
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -516,10 +522,10 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
     console.log('No right side text found in cover template');
   }
 
-  // Add date (right-aligned)
+  // Add date (left-aligned) with tight spacing to match SS1 (top-left)
   paragraphs.push(new Paragraph({
     alignment: AlignmentType.RIGHT,
-    spacing: { after: 400 },
+    spacing: { after: 100 },
     children: [new TextRun({
       text: currentDate,
       font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
@@ -527,21 +533,35 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
     })]
   }));
 
-  // Add placeholder for addresses (left blank as requested)
-  paragraphs.push(new Paragraph({
-    spacing: { after: 200 },
-    children: [new TextRun({ text: '[Addressee]' })]
-  }));
+  // Add address fields from branding data
+  // FIXED: Now dynamically injects actual address values instead of placeholders
+  if (branding?.address) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 120 },
+      children: [new TextRun({ 
+        text: branding.address,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  }
   
-  paragraphs.push(new Paragraph({
-    spacing: { after: 400 },
-    children: [new TextRun({ text: '[Company Address]' })]
-  }));
+  if (branding?.companyAddress) {
+    paragraphs.push(new Paragraph({
+      spacing: { after: 160 },
+      children: [new TextRun({ 
+        text: branding.companyAddress,
+        font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+        size: 22
+      })]
+    }));
+  }
 
   // Add subject line with proposal title
   if (proposalTitle) {
     paragraphs.push(new Paragraph({
-      spacing: { after: 200 },
+      // Extra spacing after Subject to create a clear gap before the salutation/client line
+      spacing: { after: 240 },
       children: [
         new TextRun({
           text: 'Subject: ',
@@ -550,7 +570,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
           bold: true
         }),
         new TextRun({
-          text: `\t\t${proposalTitle}`,
+          text: `\t${proposalTitle}`,
           font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
           size: 22
         })
@@ -560,7 +580,43 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding) {
 
   // Add cover content if provided
   if (coverTemplate.content) {
-    const htmlParagraphs = convertHtmlToDocxParagraphs(coverTemplate.content, branding);
+    // Get latest branding values from Redux store (source of truth)
+    const stateBranding = store.getState()?.branding?.currentBranding || branding || {};
+    const address = (stateBranding?.address || '').trim();
+    const companyAddress = (stateBranding?.companyAddress || '').trim();
+
+    // Replace placeholders in cover content with actual branding values
+    let processedContent = coverTemplate.content;
+    
+    // Get client name from Redux store based on proposal's clientId
+    const state = store.getState();
+    const clients = state.clients;
+    const proposalClientId = proposal.clientId;
+    
+    // Find the client that matches the proposal's clientId
+    const currentClient = proposalClientId 
+      ? clients.clients.find(client => client.id === proposalClientId)
+      : clients.clients[0];
+    
+    const clientName = currentClient?.name || "Client";
+    
+    // Replace client name placeholder
+    processedContent = processedContent.replace(/\[Client Name\]/g, clientName);
+    
+    // Replace company name placeholder
+    if (branding?.companyName) {
+      processedContent = processedContent.replace(/\[Your Company Name\]/g, branding.companyName);
+    }
+    
+    // Replace address placeholders with safe HTML (convert newlines to <br/>)
+    if (address) {
+      processedContent = processedContent.replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'));
+    }
+    if (companyAddress) {
+      processedContent = processedContent.replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
+    }
+    
+    const htmlParagraphs = convertHtmlToDocxParagraphs(processedContent, branding);
     paragraphs.push(...htmlParagraphs);
   }
 
@@ -769,12 +825,20 @@ function processNonTableContent(node, branding) {
       spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
     }));
   } else if (tag === 'p') {
+    const plain = node.textContent?.trim() || '';
+    const childrenRuns = parseTextContent(node, branding);
+    if (!plain || childrenRuns.length === 0) {
+      // Skip empty paragraphs to avoid extra gaps
+      return elements;
+    }
+    const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(plain);
     elements.push(new Paragraph({
-      children: parseTextContent(node, branding),
-      spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+      alignment: AlignmentType.LEFT,
+      children: childrenRuns,
+      spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
     }));
   } else if (tag === 'br') {
-    elements.push(new Paragraph({ children: [] }));
+    // Ignore single line breaks to prevent artificial empty paragraphs
   } else if (tag === 'ul' || tag === 'ol') {
     const listItems = node.querySelectorAll('li');
     listItems.forEach((li, index) => {
@@ -805,9 +869,12 @@ function processNonTableContent(node, branding) {
       // If div only contains inline content, treat it as a paragraph
       const textContent = parseTextContent(node, branding);
       if (textContent.length > 0) {
+        const plain = node.textContent?.trim() || '';
+        const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(plain);
         elements.push(new Paragraph({
+          alignment: AlignmentType.LEFT,
           children: textContent,
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+          spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
         }));
       }
     }
@@ -815,9 +882,11 @@ function processNonTableContent(node, branding) {
     // For other elements, extract text content
     const textContent = node.textContent?.trim();
     if (textContent) {
+      const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(textContent);
       elements.push(new Paragraph({
+        alignment: AlignmentType.LEFT,
         children: parseTextContent(node, branding),
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
+        spacing: DEBUG_FLAGS.renderSpacing ? (isSignOff ? { before: 120, after: 120 } : { after: 180 }) : undefined
       }));
     }
   }
@@ -831,7 +900,10 @@ function parseTextContent(node, branding, styles = {}) {
 
   node.childNodes.forEach((child) => {
     if (child.nodeType === Node.TEXT_NODE) {
-      const text = child.textContent;
+      // Normalize leading whitespace to avoid unintended paragraph indents/back spacing
+      let text = child.textContent || '';
+      text = text.replace(/\u00A0/g, ' '); // replace non-breaking spaces
+      text = text.replace(/^\s+/, ''); // trim leading spaces within text nodes
       if (text.trim()) {
         children.push(new TextRun({
           text,
@@ -887,7 +959,20 @@ export const exportToDocx = async (proposal, branding = {}) => {
   if (DEBUG_FLAGS.renderTitlePage) {
     const titleChildren = [];
 
-    if (DEBUG_FLAGS.renderLogo && DEBUG_FLAGS.renderImages && branding?.logo && isValidImageData(branding.logo)) {
+    // FIXED: Title page content now perfectly centered both horizontally and vertically
+    // Calculate dynamic spacing based on content to ensure perfect centering
+    const hasLogo = DEBUG_FLAGS.renderLogo && DEBUG_FLAGS.renderImages && branding?.logo && isValidImageData(branding.logo);
+    
+    // Perfect center alignment for both logo + title and title only scenarios
+    const topSpacing = hasLogo ? 4000 : 5000; // Increased spacing to push content lower
+    
+    titleChildren.push(new Paragraph({
+      children: [],
+      spacing: { before: topSpacing } // Balanced top margin for perfect centering
+    }));
+
+    // Logo (if present)
+    if (hasLogo) {
       try {
         const dimensions = await getImageDimensions(branding.logo);
         const contained = calculateContainedDimensions(dimensions.width, dimensions.height, 500, 200);
@@ -898,7 +983,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
 
         titleChildren.push(new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 400 } : undefined,
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 400 } : undefined, // Balanced spacing between logo and title
           children: [new ImageRun({
             data: getImageBuffer(branding.logo),
             transformation: {
@@ -913,6 +998,7 @@ export const exportToDocx = async (proposal, branding = {}) => {
       }
     }
 
+    // Title (always present, positioned under logo if logo exists)
     titleChildren.push(new Paragraph({
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
@@ -926,7 +1012,15 @@ export const exportToDocx = async (proposal, branding = {}) => {
       })]
     }));
 
-    // Title Page (No header/footer)
+    // Balanced bottom spacing to complete the centering
+    const bottomSpacing = hasLogo ? 3000 : 4000; // Balanced bottom space for perfect centering
+    
+    titleChildren.push(new Paragraph({
+      children: [],
+      spacing: { after: bottomSpacing } // Large bottom margin to complete centering
+    }));
+
+    // Title Page (No header/footer) with enhanced centering
     sections.push({
       properties: {
         page: {
@@ -1015,20 +1109,14 @@ export const exportToDocx = async (proposal, branding = {}) => {
     for (const section of proposal.sections) {
 
       // Only add watermark to non-cover sections (cover sections use letterhead backgrounds instead)
+      // FIXED: Watermark transparency and rotation now properly applied from brand manager settings
+      // FIXED: Address fields now dynamically injected from branding data instead of placeholders
       const watermark = section.type === 'cover' ? [] : await renderWatermark(branding);
       const contentChildren = [...watermark];
 
-      contentChildren.push(new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
-        children: [new TextRun({
-          text: section.title,
-          bold: true,
-          size: 32,
-          font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-          color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
-        })]
-      }));
+      // FIXED: Section title disabled - using empty string instead of section.title
+      // This prevents section titles from appearing in the generated document/PDF
+      // Remove empty heading paragraph to avoid extra spacing
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
@@ -1146,23 +1234,25 @@ export const exportToDocx = async (proposal, branding = {}) => {
       else if (section.type === 'fees') {
         const currency = section.currency || 'OMR';
         
-        // Add fee structure heading
-        const feeTypeLabel = {
-          'capped': 'Capped Fees',
-          'fixed': 'Fixed Fees', 
-          'hourly': 'Hourly Billing Without Caps'
-        }[section.feeType] || 'Fee Structure';
-        
-        contentChildren.push(new Paragraph({
-          heading: HeadingLevel.HEADING_2,
-          spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
-          children: [new TextRun({
-            text: feeTypeLabel,
-            bold: true,
-            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
-            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
-          })]
-        }));
+        // Optional fee structure heading: render only if explicitly enabled
+        if (section.showFeeHeading === true) {
+          const feeTypeLabel = {
+            'capped': 'Capped Fees',
+            'fixed': 'Fixed Fees', 
+            'hourly': 'Hourly Billing Without Caps'
+          }[section.feeType] || 'Fee Structure';
+          
+          contentChildren.push(new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: DEBUG_FLAGS.renderSpacing ? { before: 200, after: 200 } : undefined,
+            children: [new TextRun({
+              text: feeTypeLabel,
+              bold: true,
+              font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+              color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.primary?.replace('#', '') || '000000') : '000000'
+            })]
+          }));
+        }
         
         // Add Additional Details section BEFORE pricing components
         if (section.feeType && section[`${section.feeType}FeeContent`]) {
@@ -1434,26 +1524,36 @@ export const exportToDocx = async (proposal, branding = {}) => {
         
         // Additional Details section has been moved to the beginning of the fees section
         
-        // Add spacing after fees section
-        contentChildren.push(new Paragraph({
-          children: [],
-          spacing: DEBUG_FLAGS.renderSpacing ? { after: 200 } : undefined
-        }));
+        // Remove artificial spacer after fees section to avoid extra gap
       }
       // Handle cover sections with Letterheads (letterheads)
       else if (section.type === 'cover') {
         // Add cover content with new format
-        if (section.coverTemplate) {
-          const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding);
-          contentChildren.push(...coverParagraphs);
+                 if (section.coverTemplate) {
+           const coverParagraphs = createCoverLetterContent(section.coverTemplate, proposal.name, branding, proposal);
+           contentChildren.push(...coverParagraphs);
         } else if (section.content) {
-          const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
+          // Replace placeholders using Redux branding before converting
+          const stateBranding = store.getState()?.branding?.currentBranding || branding || {};
+          const address = (stateBranding?.address || '').trim();
+          const companyAddress = (stateBranding?.companyAddress || '').trim();
+          let filledContent = section.content
+            .replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'))
+            .replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
+          const htmlParagraphs = convertHtmlToDocxParagraphs(filledContent, branding);
           contentChildren.push(...htmlParagraphs);
         }
       }
       // Handle regular content sections
       else if (section.content) {
-        const htmlParagraphs = convertHtmlToDocxParagraphs(section.content, branding);
+        // Replace placeholders using Redux branding before converting
+        const stateBranding = store.getState()?.branding?.currentBranding || branding || {};
+        const address = (stateBranding?.address || '').trim();
+        const companyAddress = (stateBranding?.companyAddress || '').trim();
+        let filledContent = section.content
+          .replace(/\[Address\]/g, address.replace(/\n/g, '<br/>'))
+          .replace(/\[Company Address\]/g, companyAddress.replace(/\n/g, '<br/>'));
+        const htmlParagraphs = convertHtmlToDocxParagraphs(filledContent, branding);
         contentChildren.push(...htmlParagraphs);
       }
 

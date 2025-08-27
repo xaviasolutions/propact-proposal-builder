@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import store from '../store';
 
 export const exportToPDF = async (filename = 'proposal.pdf') => {
   try {
@@ -27,6 +28,11 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
 
     // Wait for layout to settle
     await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Before capture: replace placeholders in-clone using Redux branding
+    const stateBranding = store.getState()?.branding?.currentBranding || {};
+    const address = (stateBranding?.address || '').trim();
+    const companyAddress = (stateBranding?.companyAddress || '').trim();
 
     // Try multiple canvas generation approaches
     let canvas = null;
@@ -56,6 +62,56 @@ export const exportToPDF = async (filename = 'proposal.pdf') => {
             clonedElement.style.maxHeight = 'none';
             clonedElement.style.position = 'static';
             clonedElement.style.transform = 'none';
+
+            // Replace placeholders in the cloned DOM to ensure PDF shows correct values
+            const walker = clonedDoc.createTreeWalker(clonedElement, NodeFilter.SHOW_TEXT, null);
+            const textNodes = [];
+            while (walker.nextNode()) {
+              textNodes.push(walker.currentNode);
+            }
+            textNodes.forEach(node => {
+              if (node.nodeValue && (node.nodeValue.includes('[Address]') || node.nodeValue.includes('[Company Address]'))) {
+                node.nodeValue = node.nodeValue
+                  .replace(/\[Address\]/g, address)
+                  .replace(/\[Company Address\]/g, companyAddress);
+              }
+            });
+
+            // Normalize paragraph spacing and alignment similar to DOCX
+            const blockEls = clonedElement.querySelectorAll('p, div, li');
+            blockEls.forEach(el => {
+              const text = (el.textContent || '').trim();
+              const isSignOff = /^yours\s+(sincerely|faithfully)/i.test(text);
+              el.style.marginTop = '0';
+              el.style.marginBottom = isSignOff ? '18px' : '24px';
+              el.style.lineHeight = '1.32';
+              el.style.textAlign = 'left';
+              // Ensure no leading indent and trim leading spaces
+              el.style.textIndent = '0';
+              // Trim leading whitespace from all text nodes inside this element
+              const walker2 = clonedDoc.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+              while (walker2.nextNode()) {
+                walker2.currentNode.nodeValue = walker2.currentNode.nodeValue
+                  .replace(/\u00A0/g, ' ')
+                  .replace(/^\s+/, '');
+              }
+            });
+
+            // Add extra margin below the Subject line for clearer separation
+            const allBlocks = clonedElement.querySelectorAll('p, div');
+            allBlocks.forEach(n => {
+              const txt = (n.textContent || '').trim();
+              if (/^Subject:\b/.test(txt)) {
+                n.style.marginBottom = '36px';
+              }
+            });
+
+            // Remove completely empty paragraphs/divs to prevent stray gaps
+            clonedElement.querySelectorAll('p, div').forEach(el => {
+              if (!el.textContent || el.textContent.trim() === '') {
+                el.parentNode && el.parentNode.removeChild(el);
+              }
+            });
           }
         }
       });
