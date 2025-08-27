@@ -524,7 +524,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
 
   // Add date (left-aligned) with tight spacing to match SS1 (top-left)
   paragraphs.push(new Paragraph({
-    alignment: AlignmentType.LEFT,
+    alignment: AlignmentType.RIGHT,
     spacing: { after: 100 },
     children: [new TextRun({
       text: currentDate,
@@ -570,7 +570,7 @@ function createCoverLetterContent(coverTemplate, proposalTitle, branding, propos
           bold: true
         }),
         new TextRun({
-          text: `\t\t${proposalTitle}`,
+          text: `\t${proposalTitle}`,
           font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
           size: 22
         })
