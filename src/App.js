@@ -89,25 +89,7 @@ function AppContent() {
             id: uuidv4(), 
             type: 'scope', 
             title: 'Scope of Work', 
-            content: `<h2>Project Scope & Deliverables</h2>
-<h3>Phase 1: Discovery & Planning</h3>
-<ul>
-<li>Stakeholder interviews and requirements gathering</li>
-<li>Technical architecture design</li>
-<li>Project timeline and milestone definition</li>
-</ul>
-<h3>Phase 2: Development & Implementation</h3>
-<ul>
-<li>Core functionality development</li>
-<li>User interface design and implementation</li>
-<li>Quality assurance and testing</li>
-</ul>
-<h3>Phase 3: Deployment & Support</h3>
-<ul>
-<li>Production deployment</li>
-<li>User training and documentation</li>
-<li>Ongoing support and maintenance</li>
-</ul>`, 
+            content: ``, 
             order: 1 
           },
 //           { 
@@ -135,43 +117,14 @@ function AppContent() {
             id: uuidv4(), 
             type: 'team', 
             title: 'Our Team', 
-            content: `<h2>Our Expert Team</h2>
-<h3>Project Manager</h3>
-<p><strong>Sarah Johnson</strong> - 8+ years of project management experience in technology solutions</p>
-<h3>Lead Developer</h3>
-<p><strong>Michael Chen</strong> - Senior full-stack developer with expertise in modern web technologies</p>
-<h3>UX/UI Designer</h3>
-<p><strong>Emily Rodriguez</strong> - Creative designer specializing in user-centered design principles</p>
-<h3>Quality Assurance</h3>
-<p><strong>David Kim</strong> - QA specialist ensuring robust and reliable solutions</p>`, 
+            content: ``, 
             order: 3 
           },
           { 
             id: uuidv4(), 
             type: 'cvs', 
             title: 'Team CVs', 
-            content: `<h2>Team Qualifications</h2>
-<h3>Sarah Johnson - Project Manager</h3>
-<ul>
-<li>MBA in Technology Management</li>
-<li>PMP Certified</li>
-<li>Led 50+ successful technology projects</li>
-<li>Expertise in Agile and Waterfall methodologies</li>
-</ul>
-<h3>Michael Chen - Lead Developer</h3>
-<ul>
-<li>M.S. Computer Science</li>
-<li>10+ years full-stack development</li>
-<li>Expert in React, Node.js, Python, AWS</li>
-<li>Open source contributor</li>
-</ul>
-<h3>Emily Rodriguez - UX/UI Designer</h3>
-<ul>
-<li>B.A. Graphic Design</li>
-<li>Google UX Design Certificate</li>
-<li>5+ years designing digital experiences</li>
-<li>Proficient in Figma, Adobe Creative Suite</li>
-</ul>`, 
+            content: ``, 
             order: 4 
           }
         ],
