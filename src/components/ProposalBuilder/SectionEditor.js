@@ -528,9 +528,9 @@ const SectionEditor = ({ section, onUpdate }) => {
   // Fees-specific state
   const [feeType, setFeeType] = useState('fixed'); // 'fixed', 'hourly', 'capped'
   const [includeWorkstream, setIncludeWorkstream] = useState(false);
-  const [fixedFeeContent, setFixedFeeContent] = useState('');
+  const [fixedFeeContent, setFixedFeeContent] = useState('Subject to the assumptions set out below, we anticipate that our fee for advising on the Scope of Work shall be fixed at [•] (excluding taxes and disbursements, if any) (the Fee) \n In the event that we are required to advise on any out-of-scope matters or if any of the assumptions set out herein are no longer true, we will charge for any surplus time or additional scope on the basis of the below discounted hourly rates, which we are happy to offer');
   const [hourlyFeeContent, setHourlyFeeContent] = useState('');
-  const [cappedFeeContent, setCappedFeeContent] = useState('');
+  const [cappedFeeContent, setCappedFeeContent] = useState('Subject to the assumptions set out below, we anticipate that our fee for advising on the Scope of Work shall be capped at [•] (excluding taxes and disbursements, if any) (the Fee) \n In the event that we are required to advise on any out-of-scope matters or if any of the assumptions set out herein are no longer true, we will charge for any surplus time or additional scope on the basis of the below discounted hourly rates, which we are happy to offer');
   const [workstreamContent, setWorkstreamContent] = useState('');
 
   // Legal fees specific state
@@ -731,6 +731,10 @@ const SectionEditor = ({ section, onUpdate }) => {
         });
       }
 
+      // Get the selected cover template for cover sections
+      const selectedCover = type === 'cover' && selectedCoverId ? 
+        covers.find(cover => cover.id === selectedCoverId) : null;
+
       onUpdate({
         ...section,
         title,
@@ -740,6 +744,7 @@ const SectionEditor = ({ section, onUpdate }) => {
         selectedFirmExperience,
         selectedServices,
         selectedCoverId,
+        coverTemplate: type === 'cover' && selectedCover ? selectedCover : section.coverTemplate,
         tableData: type === 'table' ? tableData : section.tableData,
         tableTitle: type === 'table' ? tableTitle : section.tableTitle,
         tableDescription: type === 'table' ? tableDescription : section.tableDescription,

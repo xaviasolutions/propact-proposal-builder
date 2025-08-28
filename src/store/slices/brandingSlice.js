@@ -5,9 +5,9 @@ const defaultTemplates = [
     id: 'professional-blue',
     name: 'Professional Blue',
     colors: {
-      primary: '#2563eb',
-      secondary: '#64748b',
-      accent: '#10b981'
+      primary: '#000000',
+      secondary: '#000000',
+      accent: '#000000'
     },
     fonts: {
       primary: 'Inter, sans-serif',
@@ -20,48 +20,6 @@ const defaultTemplates = [
     companyAddress: '',
     headerText: 'Professional Services',
     footerText: 'Your Trusted Partner',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'modern-green',
-    name: 'Modern Green',
-    colors: {
-      primary: '#059669',
-      secondary: '#6b7280',
-      accent: '#f59e0b'
-    },
-    fonts: {
-      primary: 'Roboto, sans-serif',
-      secondary: 'Times New Roman, serif'
-    },
-    logo: null,
-    watermark: null,
-    companyName: 'Your Company Name',
-    address: '',
-    companyAddress: '',
-    headerText: 'Innovative Solutions',
-    footerText: 'Building Tomorrow',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'elegant-purple',
-    name: 'Elegant Purple',
-    colors: {
-      primary: '#7c3aed',
-      secondary: '#64748b',
-      accent: '#ec4899'
-    },
-    fonts: {
-      primary: 'Montserrat, sans-serif',
-      secondary: 'Georgia, serif'
-    },
-    logo: null,
-    watermark: null,
-    companyName: 'Your Company Name',
-    address: '',
-    companyAddress: '',
-    headerText: 'Creative Excellence',
-    footerText: 'Crafted with Care',
     createdAt: new Date().toISOString()
   }
 ];
