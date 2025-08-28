@@ -1122,15 +1122,15 @@ const BrandingTemplates = () => {
                         </SliderLabel>
                         <Slider
                           type="range"
-                          min={0.05}
-                          max={0.95}
-                          step="0.05"
+                          min={0.01}
+                          max={1.0}
+                          step="0.01"
                           value={localTransparency}
                           onChange={(e) => handleTransparencyChange(parseFloat(e.target.value))}
                           disabled={isProcessingWatermark}
                         />
                         <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-                          Light (5%) - Dark (95%)
+                          Transparent (1%) - Opaque (100%)
                         </div>
                       </SliderContainer>
 

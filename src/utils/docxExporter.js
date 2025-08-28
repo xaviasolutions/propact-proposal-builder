@@ -312,7 +312,7 @@ function createTextWatermarkImage(text, options = {}) {
     // FIXED: Calculate opacity from transparency (transparency is 0-1, where 0 = transparent, 1 = opaque)
     // For 75% opacity, transparency should be 0.25 (25% transparent, 75% opaque)
     // The transparency value from brand manager is already the correct opacity value
-    const opacity = Math.max(0.05, Math.min(0.95, transparency));
+    const opacity = Math.max(0.01, Math.min(1.0, transparency));
 
     // Set font properties
     let fontStyle = '';
