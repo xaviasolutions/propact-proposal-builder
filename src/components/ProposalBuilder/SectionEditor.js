@@ -1026,7 +1026,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     { value: 'cvs', label: 'Team CVs' },
     { value: 'firm-experience', label: 'Firm Experience' },
     // { value: 'services', label: 'Services' },
-    { value: 'table', label: 'Table Section' },
+    // { value: 'table', label: 'Table Section' },
 
     // { value: 'testimonials', label: 'Testimonials' },
     // { value: 'page-break', label: 'Page Break' },
