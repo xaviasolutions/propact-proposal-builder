@@ -1114,9 +1114,20 @@ export const exportToDocx = async (proposal, branding = {}) => {
       const watermark = section.type === 'cover' ? [] : await renderWatermark(branding);
       const contentChildren = [...watermark];
 
-      // FIXED: Section title disabled - using empty string instead of section.title
-      // This prevents section titles from appearing in the generated document/PDF
-      // Remove empty heading paragraph to avoid extra spacing
+      // Add section title for all sections except cover sections
+      if (section.type !== 'cover') {
+        contentChildren.push(new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          spacing: DEBUG_FLAGS.renderSpacing ? { after: 300 } : undefined,
+          children: [new TextRun({
+            text: section.title,
+            bold: true,
+            size: 32,
+            font: DEBUG_FLAGS.renderCustomFonts ? (branding?.fonts?.primary || 'Arial') : 'Arial',
+            color: DEBUG_FLAGS.renderCustomColors ? (branding?.colors?.accent?.replace('#', '') || '000000') : '000000'
+          })]
+        }));
+      }
 
       // Handle table sections with structured data
       if (section.type === 'table' && section.tableData) {
