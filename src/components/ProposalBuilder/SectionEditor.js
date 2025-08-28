@@ -524,7 +524,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [tableDescription, setTableDescription] = useState('');
   const [tableNote, setTableNote] = useState('');
   const [tablePageBreak, setTablePageBreak] = useState(true); // Default to true
-  
+
   // Fees-specific state
   const [feeType, setFeeType] = useState('fixed'); // 'fixed', 'hourly', 'capped'
   const [includeWorkstream, setIncludeWorkstream] = useState(false);
@@ -532,7 +532,7 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [hourlyFeeContent, setHourlyFeeContent] = useState('');
   const [cappedFeeContent, setCappedFeeContent] = useState('');
   const [workstreamContent, setWorkstreamContent] = useState('');
-  
+
   // Legal fees specific state
   const [hourlyRates, setHourlyRates] = useState([
     { position: 'Senior Partner', rate: '', discountedRate: '' },
@@ -563,13 +563,13 @@ const SectionEditor = ({ section, onUpdate }) => {
   const [includeDiscountedRates, setIncludeDiscountedRates] = useState(false);
   const [includeTranslation, setIncludeTranslation] = useState(true);
   const [currency, setCurrency] = useState('OMR');
-  
+
   // Editable headers state
   const [positionHeader, setPositionHeader] = useState('Position');
   const [standardRateHeader, setStandardRateHeader] = useState('Standard Rate');
   const [assumptionsTitle, setAssumptionsTitle] = useState('Other Assumptions');
   const [additionalDetailsTitle, setAdditionalDetailsTitle] = useState('Additional Details');
-  
+
   const covers = useSelector(state => state.covers.covers);
   const teamMembers = useSelector(state => state.teamMembers.teamMembers);
   const firmExperience = useSelector(state => state.firmExperience.firmExperience);
@@ -587,34 +587,34 @@ const SectionEditor = ({ section, onUpdate }) => {
     return firmExperience.filter(experience => {
       // Search in client name
       if (experience.client?.toLowerCase().includes(searchTerm)) return true;
-      
+
       // Search in year
       if (experience.year?.toString().includes(searchTerm)) return true;
-      
+
       // Search in sector
       if (Array.isArray(experience.sector)) {
         if (experience.sector.some(sector => sector.toLowerCase().includes(searchTerm))) return true;
       } else if (experience.sector?.toLowerCase().includes(searchTerm)) {
         return true;
       }
-      
+
       // Search in description
       if (experience.description?.toLowerCase().includes(searchTerm)) return true;
-      
+
       // Search in team members
       if (Array.isArray(experience.teamMembers)) {
         if (experience.teamMembers.some(member => member.toLowerCase().includes(searchTerm))) return true;
       } else if (experience.teamMembers?.toLowerCase().includes(searchTerm)) {
         return true;
       }
-      
+
       // Search in keywords
       if (Array.isArray(experience.keywords)) {
         if (experience.keywords.some(keyword => keyword.toLowerCase().includes(searchTerm))) return true;
       } else if (experience.keywords?.toLowerCase().includes(searchTerm)) {
         return true;
       }
-      
+
       return false;
     });
   }, [firmExperience, firmExperienceSearch]);
@@ -624,7 +624,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     setType(section.type);
     setContent(section.content);
     setHasChanges(false);
-    
+
     // Load section-specific data
     if (section.selectedTeamMembers) {
       setSelectedTeamMembers(section.selectedTeamMembers);
@@ -638,7 +638,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     if (section.selectedCoverId) {
       setSelectedCoverId(section.selectedCoverId);
     }
-    
+
     // Load table data for table sections
     if (section.type === 'table') {
       if (section.tableData) {
@@ -649,7 +649,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       setTableNote(section.tableNote || '');
       setTablePageBreak(section.tablePageBreak !== undefined ? section.tablePageBreak : true);
     }
-    
+
     // Load fees data for fees sections
     if (section.type === 'fees') {
       setFeeType(section.feeType || 'fixed');
@@ -658,7 +658,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       setHourlyFeeContent(section.hourlyFeeContent || '');
       setCappedFeeContent(section.cappedFeeContent || '');
       setWorkstreamContent(section.workstreamContent || '');
-      
+
       // Load new legal fees data
       setHourlyRates(section.hourlyRates || [
         { position: 'Senior Partner', rate: 250 },
@@ -688,14 +688,14 @@ const SectionEditor = ({ section, onUpdate }) => {
       setIncludeDiscountedRates(section.includeDiscountedRates || false);
       setIncludeTranslation(section.includeTranslation || false);
       setCurrency(section.currency || 'OMR');
-      
+
       // Load editable headers
       setPositionHeader(section.positionHeader || 'Position');
       setStandardRateHeader(section.standardRateHeader || 'Standard Rate');
       setAssumptionsTitle(section.assumptionsTitle || 'Other Assumptions');
       setAdditionalDetailsTitle(section.additionalDetailsTitle || 'Additional Details');
     }
-    
+
     // If this is a cover letter section, try to find the selected cover
     if (section.type === 'cover' && section.content) {
       const matchingCover = covers.find(cover => cover.content === section.content);
@@ -712,14 +712,14 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const handleSave = useCallback(async () => {
     if (!hasChanges) return;
-    
+
     setIsSaving(true);
-    
+
     try {
       // Debug: Log the actual content being saved
       console.log('🔍 AUTOSAVING SECTION:', title, 'Type:', type);
       console.log('📄 Content length:', content?.length || 0);
-      
+
       // Check for tables in the content
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
@@ -771,7 +771,7 @@ const SectionEditor = ({ section, onUpdate }) => {
         assumptionsTitle: type === 'fees' ? assumptionsTitle : section.assumptionsTitle,
         additionalDetailsTitle: type === 'fees' ? additionalDetailsTitle : section.additionalDetailsTitle
       });
-      
+
       setHasChanges(false);
       setLastSaved(new Date());
     } catch (error) {
@@ -786,7 +786,7 @@ const SectionEditor = ({ section, onUpdate }) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     saveTimeoutRef.current = setTimeout(() => {
       handleSave();
     }, 1000); // 1 second debounce
@@ -818,7 +818,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       headerRow.push(`Header ${j + 1}`);
     }
     newTableData.push(headerRow);
-    
+
     // Create data rows
     for (let i = 1; i < rows; i++) {
       const row = [];
@@ -827,7 +827,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       }
       newTableData.push(row);
     }
-    
+
     setTableData(newTableData);
     setHasChanges(true);
   };
@@ -874,7 +874,7 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const generateTeamContent = () => {
     if (selectedTeamMembers.length === 0) return '';
-    
+
     let teamContent = '';
     selectedTeamMembers.forEach(memberId => {
       const member = teamMembers.find(tm => tm.id === memberId);
@@ -895,7 +895,7 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const generateCVContent = () => {
     if (selectedTeamMembers.length === 0) return '';
-    
+
     let cvContent = '';
     selectedTeamMembers.forEach(memberId => {
       const member = teamMembers.find(tm => tm.id === memberId);
@@ -919,7 +919,7 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const generateFirmExperienceContent = () => {
     if (selectedFirmExperience.length === 0) return '';
-    
+
     let firmExperienceContent = '';
     selectedFirmExperience.forEach(experienceId => {
       const experience = firmExperience.find(exp => exp.id === experienceId);
@@ -938,7 +938,7 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const generateServiceContent = () => {
     if (selectedServices.length === 0) return '';
-    
+
     let serviceContent = '';
     selectedServices.forEach(serviceId => {
       const service = services.find(s => s.id === serviceId);
@@ -975,7 +975,7 @@ const SectionEditor = ({ section, onUpdate }) => {
 
   const generatePreSavedContent = () => {
     if (selectedPreSavedContent.length === 0) return '';
-    
+
     let preSavedContentHtml = '';
     selectedPreSavedContent.forEach(contentId => {
       const contentItem = preSavedContent.find(item => item.id === contentId);
@@ -1037,8 +1037,8 @@ const SectionEditor = ({ section, onUpdate }) => {
     toolbar: [
       [{ 'header': [1, 2, 3, false] }],
       ['bold', 'italic', 'underline', 'strike'],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      [{ 'indent': '-1' }, { 'indent': '+1' }],
       [{ 'align': [] }],
       ['link', 'image'],
       [{ 'color': [] }, { 'background': [] }],
@@ -1065,14 +1065,14 @@ const SectionEditor = ({ section, onUpdate }) => {
           <FiType size={20} />
           Edit Section
         </EditorTitle>
-        <AutosaveStatus 
-          isSaving={isSaving} 
+        <AutosaveStatus
+          isSaving={isSaving}
           className={isSaving ? 'saving' : 'saved'}
         >
           <FiSave size={14} />
-          {isSaving ? 'Saving...' : 
-           lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 
-           hasChanges ? 'Changes pending...' : 'All changes saved'}
+          {isSaving ? 'Saving...' :
+            lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` :
+              hasChanges ? 'Changes pending...' : 'All changes saved'}
         </AutosaveStatus>
       </EditorHeader>
 
@@ -1100,8 +1100,7 @@ const SectionEditor = ({ section, onUpdate }) => {
           </ClientInfoGrid>
         </ClientInfoContainer>
       )}
-
-      <FormGroup>
+      {type == "cover" ? null : <FormGroup>
         <Label>Section Title</Label>
         <Input
           type="text"
@@ -1109,7 +1108,7 @@ const SectionEditor = ({ section, onUpdate }) => {
           onChange={handleTitleChange}
           placeholder="Enter section title"
         />
-      </FormGroup>
+      </FormGroup>}
 
       <FormGroup>
         <Label>Section Type</Label>
@@ -1216,15 +1215,15 @@ const SectionEditor = ({ section, onUpdate }) => {
                 </ItemCard>
               ))
             ) : (
-              <div style={{ 
-                textAlign: 'center', 
-                color: '#666', 
-                fontStyle: 'italic', 
+              <div style={{
+                textAlign: 'center',
+                color: '#666',
+                fontStyle: 'italic',
                 padding: '40px 20px',
                 gridColumn: '1 / -1'
               }}>
-                {firmExperienceSearch.trim() ? 
-                  `No firm experience found matching "${firmExperienceSearch}"` : 
+                {firmExperienceSearch.trim() ?
+                  `No firm experience found matching "${firmExperienceSearch}"` :
                   'No firm experience available'
                 }
               </div>
@@ -1323,11 +1322,11 @@ const SectionEditor = ({ section, onUpdate }) => {
             <FiMinus />
             Page Break
           </SelectorTitle>
-          <div style={{ 
-            padding: '20px', 
-            textAlign: 'center', 
-            backgroundColor: '#f8f9fa', 
-            border: '2px dashed #dee2e6', 
+          <div style={{
+            padding: '20px',
+            textAlign: 'center',
+            backgroundColor: '#f8f9fa',
+            border: '2px dashed #dee2e6',
             borderRadius: '8px',
             margin: '10px 0'
           }}>
@@ -1401,7 +1400,7 @@ const SectionEditor = ({ section, onUpdate }) => {
               modules={{
                 toolbar: [
                   ['bold', 'italic', 'underline'],
-                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                   ['link'],
                   ['clean']
                 ]
@@ -1418,7 +1417,7 @@ const SectionEditor = ({ section, onUpdate }) => {
             <FiTable />
             Table Builder
           </SelectorTitle>
-          
+
           <TableToolbar>
             <TableButton onClick={() => createNewTable(2, 2)}>
               2x2 Table
@@ -1433,33 +1432,33 @@ const SectionEditor = ({ section, onUpdate }) => {
               5x4 Table
             </TableButton>
           </TableToolbar>
-          
+
           <div style={{ marginBottom: '16px' }}>
             <TableButton onClick={addTableRow}>+ Add Row</TableButton>
             <TableButton onClick={removeTableRow}>- Remove Row</TableButton>
             <TableButton onClick={addTableColumn}>+ Add Column</TableButton>
             <TableButton onClick={removeTableColumn}>- Remove Column</TableButton>
           </div>
-          
+
           {/* Table Editor */}
           {tableData && tableData.length > 0 && (
-            <div style={{ 
-              border: '1px solid #ddd', 
-              borderRadius: '8px', 
+            <div style={{
+              border: '1px solid #ddd',
+              borderRadius: '8px',
               overflow: 'auto',
               marginBottom: '16px',
               width: '100%'
             }}>
-              <table style={{ 
-                width: '100%', 
+              <table style={{
+                width: '100%',
                 borderCollapse: 'collapse',
                 tableLayout: 'fixed'
               }}>
                 <thead>
                   <tr style={{ background: '#f8f9fa' }}>
                     {tableData[0]?.map((cell, colIndex) => (
-                      <th key={colIndex} style={{ 
-                        border: '1px solid #ddd', 
+                      <th key={colIndex} style={{
+                        border: '1px solid #ddd',
                         padding: '12px',
                         textAlign: 'left',
                         width: `${100 / tableData[0].length}%`,
@@ -1489,8 +1488,8 @@ const SectionEditor = ({ section, onUpdate }) => {
                   {tableData.slice(1).map((row, rowIndex) => (
                     <tr key={rowIndex + 1}>
                       {row.map((cell, colIndex) => (
-                        <td key={colIndex} style={{ 
-                          border: '1px solid #ddd', 
+                        <td key={colIndex} style={{
+                          border: '1px solid #ddd',
                           padding: '12px',
                           verticalAlign: 'top',
                           width: `${100 / tableData[0].length}%`
@@ -1538,7 +1537,7 @@ const SectionEditor = ({ section, onUpdate }) => {
               modules={{
                 toolbar: [
                   ['bold', 'italic', 'underline'],
-                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                   ['link'],
                   ['clean']
                 ]
@@ -1576,7 +1575,7 @@ const SectionEditor = ({ section, onUpdate }) => {
       {type === 'fees' && (
         <FeesContainer>
           <FeesTitle>Legal Fees Configuration</FeesTitle>
-          
+
           {/* Currency Selection */}
           <FeesSection>
             <InputGroup>
@@ -1602,7 +1601,7 @@ const SectionEditor = ({ section, onUpdate }) => {
           <FeesSection>
             <FeesSubtitle>Fee Structure</FeesSubtitle>
             <RadioGroup>
-              <RadioOption 
+              <RadioOption
                 className={feeType === 'capped' ? 'selected' : ''}
                 onClick={() => {
                   setFeeType('capped');
@@ -1614,12 +1613,12 @@ const SectionEditor = ({ section, onUpdate }) => {
                   name="feeType"
                   value="capped"
                   checked={feeType === 'capped'}
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
                 <RadioLabel>Capped Fees - Maximum fee for entire scope (excluding taxes and disbursements)</RadioLabel>
               </RadioOption>
-              
-              <RadioOption 
+
+              <RadioOption
                 className={feeType === 'fixed' ? 'selected' : ''}
                 onClick={() => {
                   setFeeType('fixed');
@@ -1631,12 +1630,12 @@ const SectionEditor = ({ section, onUpdate }) => {
                   name="feeType"
                   value="fixed"
                   checked={feeType === 'fixed'}
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
                 <RadioLabel>Fixed Fees - Set fee per workstream or entire scope</RadioLabel>
               </RadioOption>
-              
-              <RadioOption 
+
+              <RadioOption
                 className={feeType === 'hourly' ? 'selected' : ''}
                 onClick={() => {
                   setFeeType('hourly');
@@ -1648,7 +1647,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                   name="feeType"
                   value="hourly"
                   checked={feeType === 'hourly'}
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
                 <RadioLabel>Hourly Billing Without Caps - Fixed hourly rates by position</RadioLabel>
               </RadioOption>
@@ -1658,7 +1657,7 @@ const SectionEditor = ({ section, onUpdate }) => {
           {/* Content Editors for each fee type */}
           <FeesSection>
             <FeesSubtitle>Additional Content</FeesSubtitle>
-            
+
             {/* Additional Details Title Input */}
             <div style={{ marginBottom: '16px' }}>
               <Label>Additional Details Section Title</Label>
@@ -1677,7 +1676,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 }}
               />
             </div>
-            
+
             {feeType === 'fixed' && (
               <div style={{ marginBottom: '16px' }}>
                 <Label>Fixed Fee Content</Label>
@@ -1692,7 +1691,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                   modules={{
                     toolbar: [
                       ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                       ['link'],
                       ['clean']
                     ]
@@ -1701,7 +1700,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 />
               </div>
             )}
-            
+
             {feeType === 'hourly' && (
               <div style={{ marginBottom: '16px' }}>
                 <Label>Hourly Fee Content</Label>
@@ -1716,7 +1715,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                   modules={{
                     toolbar: [
                       ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                       ['link'],
                       ['clean']
                     ]
@@ -1725,7 +1724,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 />
               </div>
             )}
-            
+
             {feeType === 'capped' && (
               <div style={{ marginBottom: '16px' }}>
                 <Label>Capped Fee Content</Label>
@@ -1740,7 +1739,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                   modules={{
                     toolbar: [
                       ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                       ['link'],
                       ['clean']
                     ]
@@ -1754,89 +1753,74 @@ const SectionEditor = ({ section, onUpdate }) => {
           {/* Hourly Rates Table - Only for Hourly Billing */}
           {feeType === 'hourly' && (
             <FeesSection>
-            <FeesSubtitle>Hourly Rates</FeesSubtitle>
-            <RatesTable>
-              <thead>
-                <tr>
-                  <TableHeader>
-                    <Input
-                      value={positionHeader}
-                      onChange={(e) => {
-                        setPositionHeader(e.target.value);
-                        setHasChanges(true);
-                      }}
-                      style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: 'white', 
-                        fontWeight: '600',
-                        fontSize: '14px',
-                        padding: '0'
-                      }}
-                      placeholder="Position"
-                    />
-                  </TableHeader>
-                  <TableHeader>
-                    <Input
-                      value={`${standardRateHeader} (${currency})`}
-                      onChange={(e) => {
-                        // Remove the currency part when editing
-                        const newValue = e.target.value.replace(` (${currency})`, '');
-                        setStandardRateHeader(newValue);
-                        setHasChanges(true);
-                      }}
-                      style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: 'white', 
-                        fontWeight: '600',
-                        fontSize: '14px',
-                        padding: '0'
-                      }}
-                      placeholder="Standard Rate"
-                    />
-                  </TableHeader>
-                  {includeDiscountedRates && <TableHeader>Discounted Rate ({currency})</TableHeader>}
-                </tr>
-              </thead>
-              <tbody>
-                {hourlyRates.map((rate, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
+              <FeesSubtitle>Hourly Rates</FeesSubtitle>
+              <RatesTable>
+                <thead>
+                  <tr>
+                    <TableHeader>
                       <Input
-                        value={rate.position}
+                        value={positionHeader}
                         onChange={(e) => {
-                          const newRates = hourlyRates.map((rate, i) => 
-                            i === index ? { ...rate, position: e.target.value } : rate
-                          );
-                          setHourlyRates(newRates);
+                          setPositionHeader(e.target.value);
                           setHasChanges(true);
                         }}
-                        placeholder="Position title"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          padding: '0'
+                        }}
+                        placeholder="Position"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <SmallInput
-                        type="number"
-                        value={rate.standardRate}
+                    </TableHeader>
+                    <TableHeader>
+                      <Input
+                        value={`${standardRateHeader} (${currency})`}
                         onChange={(e) => {
-                          const newRates = hourlyRates.map((rate, i) => 
-                            i === index ? { ...rate, standardRate: e.target.value } : rate
-                          );
-                          setHourlyRates(newRates);
+                          // Remove the currency part when editing
+                          const newValue = e.target.value.replace(` (${currency})`, '');
+                          setStandardRateHeader(newValue);
                           setHasChanges(true);
                         }}
-                        placeholder="0"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          padding: '0'
+                        }}
+                        placeholder="Standard Rate"
                       />
-                    </TableCell>
-                    {includeDiscountedRates && (
+                    </TableHeader>
+                    {includeDiscountedRates && <TableHeader>Discounted Rate ({currency})</TableHeader>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {hourlyRates.map((rate, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Input
+                          value={rate.position}
+                          onChange={(e) => {
+                            const newRates = hourlyRates.map((rate, i) =>
+                              i === index ? { ...rate, position: e.target.value } : rate
+                            );
+                            setHourlyRates(newRates);
+                            setHasChanges(true);
+                          }}
+                          placeholder="Position title"
+                        />
+                      </TableCell>
                       <TableCell>
                         <SmallInput
                           type="number"
-                          value={rate.discountedRate}
+                          value={rate.standardRate}
                           onChange={(e) => {
-                            const newRates = hourlyRates.map((rate, i) => 
-                              i === index ? { ...rate, discountedRate: e.target.value } : rate
+                            const newRates = hourlyRates.map((rate, i) =>
+                              i === index ? { ...rate, standardRate: e.target.value } : rate
                             );
                             setHourlyRates(newRates);
                             setHasChanges(true);
@@ -1844,56 +1828,71 @@ const SectionEditor = ({ section, onUpdate }) => {
                           placeholder="0"
                         />
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </tbody>
-            </RatesTable>
-            
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <AddButton
-                onClick={() => {
-                  setHourlyRates([...hourlyRates, { position: '', standardRate: '', discountedRate: '' }]);
-                  setHasChanges(true);
-                }}
-                style={{ margin: 0 }}
-              >
-                + Add Position
-              </AddButton>
-              
-              {hourlyRates.length > 1 && (
-                <RemoveButton
+                      {includeDiscountedRates && (
+                        <TableCell>
+                          <SmallInput
+                            type="number"
+                            value={rate.discountedRate}
+                            onChange={(e) => {
+                              const newRates = hourlyRates.map((rate, i) =>
+                                i === index ? { ...rate, discountedRate: e.target.value } : rate
+                              );
+                              setHourlyRates(newRates);
+                              setHasChanges(true);
+                            }}
+                            placeholder="0"
+                          />
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </tbody>
+              </RatesTable>
+
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <AddButton
                   onClick={() => {
-                    setHourlyRates(hourlyRates.slice(0, -1));
+                    setHourlyRates([...hourlyRates, { position: '', standardRate: '', discountedRate: '' }]);
                     setHasChanges(true);
                   }}
                   style={{ margin: 0 }}
                 >
-                  - Remove Last
-                </RemoveButton>
-              )}
-            </div>
-            
-            <CheckboxContainer>
-              <CheckboxLabel>
-                <CheckboxInput
-                  type="checkbox"
-                  checked={includeDiscountedRates}
-                  onChange={(e) => {
-                    setIncludeDiscountedRates(e.target.checked);
-                    setHasChanges(true);
-                  }}
-                />
-                Include discounted rates for out-of-scope work
-              </CheckboxLabel>
-            </CheckboxContainer>
-          </FeesSection>
+                  + Add Position
+                </AddButton>
+
+                {hourlyRates.length > 1 && (
+                  <RemoveButton
+                    onClick={() => {
+                      setHourlyRates(hourlyRates.slice(0, -1));
+                      setHasChanges(true);
+                    }}
+                    style={{ margin: 0 }}
+                  >
+                    - Remove Last
+                  </RemoveButton>
+                )}
+              </div>
+
+              <CheckboxContainer>
+                <CheckboxLabel>
+                  <CheckboxInput
+                    type="checkbox"
+                    checked={includeDiscountedRates}
+                    onChange={(e) => {
+                      setIncludeDiscountedRates(e.target.checked);
+                      setHasChanges(true);
+                    }}
+                  />
+                  Include discounted rates for out-of-scope work
+                </CheckboxLabel>
+              </CheckboxContainer>
+            </FeesSection>
           )}
 
           {/* Additional Charges */}
           <FeesSection>
             <FeesSubtitle>Additional Charges</FeesSubtitle>
-            
+
             <CheckboxContainer>
               <CheckboxLabel>
                 <CheckboxInput
@@ -1907,7 +1906,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 Include translation charges
               </CheckboxLabel>
             </CheckboxContainer>
-            
+
             {includeTranslation && (
               <>
                 {/* <InputGroup>
@@ -1937,7 +1936,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                     modules={{
                       toolbar: [
                         ['bold', 'italic', 'underline'],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                         ['link'],
                         ['clean']
                       ]
@@ -1947,7 +1946,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 </div>
               </>
             )}
-            
+
             <CheckboxContainer>
               <CheckboxLabel>
                 <CheckboxInput
@@ -1961,7 +1960,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 Include taxes
               </CheckboxLabel>
             </CheckboxContainer>
-            
+
             {includeTaxes && (
               <div style={{ marginTop: '16px' }}>
                 <Label>Taxes Content</Label>
@@ -1976,7 +1975,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                   modules={{
                     toolbar: [
                       ['bold', 'italic', 'underline'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                       ['link'],
                       ['clean']
                     ]
@@ -1985,7 +1984,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                 />
               </div>
             )}
-            
+
             {/* <InputGroup>
               <InputWrapper>
                 <Label>VAT Rate (%)</Label>
@@ -2064,11 +2063,11 @@ const SectionEditor = ({ section, onUpdate }) => {
             </div>
             <DragDropContext onDragEnd={(result) => {
               if (!result.destination) return;
-              
+
               const items = Array.from(assumptions);
               const [reorderedItem] = items.splice(result.source.index, 1);
               items.splice(result.destination.index, 0, reorderedItem);
-              
+
               setAssumptions(items);
               setHasChanges(true);
             }}>
@@ -2151,7 +2150,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                       <Input
                         value={workstream.name}
                         onChange={(e) => {
-                          const newWorkstreams = workstreams.map((ws, i) => 
+                          const newWorkstreams = workstreams.map((ws, i) =>
                             i === index ? { ...ws, name: e.target.value } : ws
                           );
                           setWorkstreams(newWorkstreams);
@@ -2167,7 +2166,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                           type="number"
                           value={workstream.amount}
                           onChange={(e) => {
-                            const newWorkstreams = workstreams.map((ws, i) => 
+                            const newWorkstreams = workstreams.map((ws, i) =>
                               i === index ? { ...ws, amount: e.target.value } : ws
                             );
                             setWorkstreams(newWorkstreams);
@@ -2183,7 +2182,7 @@ const SectionEditor = ({ section, onUpdate }) => {
                     <AssumptionText
                       value={workstream.description}
                       onChange={(e) => {
-                        const newWorkstreams = workstreams.map((ws, i) => 
+                        const newWorkstreams = workstreams.map((ws, i) =>
                           i === index ? { ...ws, description: e.target.value } : ws
                         );
                         setWorkstreams(newWorkstreams);

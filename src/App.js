@@ -82,11 +82,7 @@ function AppContent() {
             id: uuidv4(), 
             type: 'cover', 
             title: 'Cover Letter', 
-            content: `<h2>Dear Valued Client,</h2>
-<p>We are excited to present this comprehensive proposal for your upcoming project. Our team has carefully analyzed your requirements and developed a tailored solution that addresses your specific needs.</p>
-<p>This proposal outlines our understanding of your project, our recommended approach, timeline, and investment details. We believe our expertise and commitment to excellence make us the ideal partner for your project.</p>
-<p>We look forward to discussing this proposal with you and answering any questions you may have.</p>
-<p><strong>Best regards,</strong><br>The Project Team</p>`, 
+            content: ``, 
             order: 0 
           },
           { 
